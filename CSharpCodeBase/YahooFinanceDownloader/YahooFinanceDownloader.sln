@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YahooFinanceDownloader", "Y
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YahooPriceBatchLoader", "YahooPriceBatchLoader\YahooPriceBatchLoader.csproj", "{1341FA0D-EEFF-47F0-8FE0-7AB95C53A96A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SQLUtils", "SQLUtils\SQLUtils.csproj", "{798E1668-7BEA-4377-AA86-C1A241096F6A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,6 +21,10 @@ Global
 		{1341FA0D-EEFF-47F0-8FE0-7AB95C53A96A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1341FA0D-EEFF-47F0-8FE0-7AB95C53A96A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1341FA0D-EEFF-47F0-8FE0-7AB95C53A96A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{798E1668-7BEA-4377-AA86-C1A241096F6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{798E1668-7BEA-4377-AA86-C1A241096F6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{798E1668-7BEA-4377-AA86-C1A241096F6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{798E1668-7BEA-4377-AA86-C1A241096F6A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
