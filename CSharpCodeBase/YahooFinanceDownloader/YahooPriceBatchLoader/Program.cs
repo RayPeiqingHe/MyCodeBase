@@ -25,11 +25,15 @@ namespace YahooPriceBatchLoader
 
         static void Main(string[] args)
         {
+            logger.Info("Batch Loader starts...");
+
             string connstr = ConfigurationManager.AppSettings["SQLConnection"];
 
             string stagingTable = ConfigurationManager.AppSettings["StagingTableName"];
 
             string sp_OHLC = ConfigurationManager.AppSettings["InsertOHLC"];
+
+            string clearStagingTable = ConfigurationManager.AppSettings["ClearStagingTable"];
 
             using (SQLUtils sql = new SQLUtils(connstr))
             {
@@ -43,16 +47,23 @@ namespace YahooPriceBatchLoader
 
                     string headers = string.Empty;
 
+                    sql.RunCommand(clearStagingTable);
+
                     foreach (DataRow row in dtSecurities.Rows)
                     {
                         string ticker = row["Ticker"].ToString();
 
-                        if (row["InsertDate"] == DBNull.Value)
+                        DateTime lastDivDate = HistoricalStockDownloader.GetLatestDivDate(ticker);
+
+                        if (row["InsertDate"] == DBNull.Value || lastDivDate.Date >= DateTime.Today.Date)
                         {
-                            List<HistoricalStock> retval = HistoricalStockDownloader.DownloadData(ticker, new DateTime(2015, 1, 1),
-                                new DateTime(2015, 8, 7), out headers);
+                            List<HistoricalStock> retval = HistoricalStockDownloader.DownloadDataAll(ticker, out headers);
 
                             sql.BulkInsert<HistoricalStock>(stagingTable, retval);
+
+                            sql.RunCommand(sp_OHLC);
+
+                            logger.Info(string.Format("Historical quotes download completed for {0}", ticker));
                         }
                     }
                 }
@@ -61,6 +72,12 @@ namespace YahooPriceBatchLoader
                     logger.Error(ex.Message);
                 }
             }
+
+            logger.Info("Batch Loader completes...");
+
+#if DEBUG
+            Console.ReadLine();
+#endif
         }
     }
 }

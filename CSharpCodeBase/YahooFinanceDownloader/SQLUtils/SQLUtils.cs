@@ -19,6 +19,11 @@ namespace SQLLib
             conn = new SqlConnection(connstr);
         }
 
+        ~SQLUtils()
+        {
+            Dispose();
+        }
+
         public void GetTableFromQuery(string query, DataTable dtResult)
         {
             // create data adapter

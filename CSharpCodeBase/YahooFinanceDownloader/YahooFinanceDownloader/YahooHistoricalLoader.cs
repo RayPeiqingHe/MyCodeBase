@@ -94,20 +94,52 @@ namespace YahooFinanceDownloader
             return url;
         }
 
-        private static string getUrlStringAll(string ticker, string fields)
+        private static string getUrlStringAll(string ticker)
         {
-            string url = string.Format("http://ichart.finance.yahoo.com/table.csv?s={0}&a=0&b=1&c=2015&d=7&e=7&f={1}&g=d&ignore=.csv", ticker, fields);
+            string url = string.Format("http://ichart.finance.yahoo.com/table.csv?s={0}&g=d&ignore=.csv", ticker);
 
             return url;
         }
 
-        public static List<HistoricalStock> DownloadDataAll(string ticker, string fields, out string header)
+        public static DateTime GetLatestDivDate(string ticker)
+        {
+            DateTime dtStartDate = new DateTime(DateTime.Today.Year, 1, 1);
+
+            string url = string.Format("http://ichart.finance.yahoo.com/x?s={0}&a={1}&b={2}&c={3}&g=v&y=0&z=30000"
+                ,ticker, dtStartDate.Month - 1, dtStartDate.Day, dtStartDate.Year);
+
+            string data = string.Empty;
+
+            using (WebClient web = new WebClient())
+            {
+                data = web.DownloadString(url);
+            }
+
+            if (string.IsNullOrEmpty(data))
+                return DateTime.MinValue;
+            else
+            {
+                string[] rows = data.Split(new string[] { "," }, StringSplitOptions.None);
+
+                DateTime lastDivDate = DateTime.MinValue;
+
+                for (int i = 1; i < rows.Length; i++)
+                {
+                    if (DateTime.TryParse(rows[i].Trim(), out lastDivDate))
+                        break;
+                }
+
+                return lastDivDate;
+            }
+        }
+
+        public static List<HistoricalStock> DownloadDataAll(string ticker, out string header)
         {
             List<HistoricalStock> retval = null;
 
             using (WebClient web = new WebClient())
             {
-                string data = web.DownloadString(getUrlStringAll(ticker, fields));
+                string data = web.DownloadString(getUrlStringAll(ticker));
 
                 retval = GetSecurityObjFromURL(data, ticker, out header);
             }
