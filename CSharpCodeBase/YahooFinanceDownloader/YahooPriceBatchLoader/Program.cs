@@ -10,6 +10,7 @@ using System.Data;
 using SQLLib;
 using log4net;
 using log4net.Config;
+using System.Net;
 
 namespace YahooPriceBatchLoader
 {
@@ -51,25 +52,36 @@ namespace YahooPriceBatchLoader
 
                     foreach (DataRow row in dtSecurities.Rows)
                     {
-                        string ticker = row["Ticker"].ToString();
-
-                        DateTime lastDivDate = HistoricalStockDownloader.GetLatestDivDate(ticker);
-
-                        if (row["InsertDate"] == DBNull.Value || lastDivDate.Date >= DateTime.Today.Date)
+                        try
                         {
-                            List<HistoricalStock> retval = HistoricalStockDownloader.DownloadDataAll(ticker, out headers);
+                            string ticker = row["Ticker"].ToString();
 
-                            sql.BulkInsert<HistoricalStock>(stagingTable, retval);
+                            DateTime lastDivDate = HistoricalStockDownloader.GetLatestDivDate(ticker);
 
-                            sql.RunCommand(sp_OHLC);
+                            if (row["InsertDate"] == DBNull.Value || lastDivDate.Date >= DateTime.Today.Date)
+                            {
+                                List<HistoricalStock> retval = HistoricalStockDownloader.DownloadDataAll(ticker, out headers);
 
-                            logger.Info(string.Format("Historical quotes download completed for {0}", ticker));
+                                sql.BulkInsert<HistoricalStock>(stagingTable, retval);
+
+                                sql.RunCommand(sp_OHLC);
+
+                                logger.Info(string.Format("Historical quotes download completed for {0}", ticker));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.Error(ex.Message);
+
+                            logger.Error(ex.StackTrace);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     logger.Error(ex.Message);
+
+                    logger.Error(ex.StackTrace);
                 }
             }
 
