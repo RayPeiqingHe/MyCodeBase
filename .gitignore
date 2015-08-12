@@ -217,3 +217,7 @@ pip-log.txt
 
 # Log4net dll
 log4net.*
+
+# Python project file
+*.xml
+*.iml
