@@ -42,7 +42,8 @@ class QuandlUtils(object):
         :param start_dt: The start date of the data
 
         :param end_dt: The end date of the data
-        :return:
+
+        :return: The resulted data frame containing the Quandl data
         """
 
         # First check if start date is a valid date
@@ -56,7 +57,9 @@ class QuandlUtils(object):
             raise TypeError('end_dt must be a datetime.date, not a %s' % type(end_dt))
 
         try:
-            self.quandl_data = Quandl.get(quandl_code, authtoken=self._api_key,trim_start=start_dt, trim_end=end_dt)
+            quandl_data = Quandl.get(quandl_code, authtoken=self._api_key,trim_start=start_dt, trim_end=end_dt)
+
+            return quandl_data
         except:
             # catch all exception
             e = sys.exc_info()[0]
