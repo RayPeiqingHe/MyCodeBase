@@ -15,8 +15,8 @@ def parser_datetime(input):
 
     return datetime.strptime(input , '%Y-%m-%d')
 
-def get_api_key():
-    """Read the API key from the command line argument"""
+def get_command_line_args():
+    """Read the all required inputs from the command line argument"""
 
     import argparse
 
@@ -35,10 +35,8 @@ def get_api_key():
 
     args = parser.parse_args()
 
-    print args.s
-
-    # Read the API key from the command line argument
-    return args.k
+    # Return all command line arguments
+    return args
 
 def setup_quandl_query():
     """This function sets up the Quandl codes to be used in pull data"""
@@ -77,8 +75,17 @@ def main():
     A simple driver method to test the function of FutureCaseStudy
     """
 
-    # Read the API key from the command line argument
-    key = get_api_key()
+    # Read all command line argument and store them
+    args = get_command_line_args()
+
+    # get the API key from the command line argument
+    key = args.k
+
+    # get the start date from the command line argument
+    start_dt = args.s
+
+    # get the end date from the command line argument
+    end_dt = args.d
 
     query = setup_quandl_query()
 
@@ -87,10 +94,6 @@ def main():
 
     # initialize the query object for CTR data
     CTR_query = query[1]
-
-    start_dt = datetime.strptime('2015-01-01' , '%Y-%m-%d')
-
-    end_dt = datetime.strptime('2015-11-10' , '%Y-%m-%d')
 
     cols = ['Soybean', 'Soybean_oil']
 
