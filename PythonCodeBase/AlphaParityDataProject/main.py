@@ -114,6 +114,8 @@ def main():
     # 4. Calculate correlation for daily returns between soybean and soybean oil
     corr = study.compute_corr(df_prices, [cols[0] + '_daily_ret', cols[1] + '_daily_ret'])
 
+    print('The corrrelation matrix is')
+
     print corr
 
 if __name__ == '__main__':
