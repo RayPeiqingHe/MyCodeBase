@@ -4,9 +4,6 @@ import Quandl
 
 from datetime import datetime
 
-# Handle exception
-import sys
-
 
 class QuandlCodeHelper(object):
 
@@ -63,7 +60,9 @@ class QuandlCodeHelper(object):
 class QuandlUtils(object):
 
     """
-    Helper class for accessing Quandl data
+    Wrapper class for accessing Quandl data. This class is mainly for providing
+    more detailed info for handling input arugument error, such as invalid dates
+    and invalid Quandl code.
     """
 
     def __init__(self, api_key = None):
@@ -81,16 +80,12 @@ class QuandlUtils(object):
 
     def get_data(self, quandl_code, start_dt = None, end_dt = None):
 
-        """
-        This function pulls data from Quandl
+        """This function pulls data from Quandl
 
         :param quandl_code: To download a dataset, you will need to know its Quandl code
                             For example, to get Facebook stock price, use "WIKI/FB"
-
         :param start_dt: The start date of the data
-
         :param end_dt: The end date of the data
-
         :return: The resulted data frame containing the Quandl data
         """
 
@@ -104,14 +99,15 @@ class QuandlUtils(object):
             # Raise error if end_dt is a invalid date time
             raise TypeError('end_dt must be a datetime.date, not a %s' % type(end_dt))
 
-        try:
-            quandl_data = Quandl.get(quandl_code, authtoken=self._api_key,trim_start=start_dt, trim_end=end_dt)
+        # Call the Quandl DLL to pull down quandl data
+        quandl_data = Quandl.get(quandl_code, authtoken=self._api_key,trim_start=start_dt, trim_end=end_dt)
 
-            return quandl_data
-        except:
-            # catch all exception
-            e = sys.exc_info()[0]
-            print( "<p>Error: %s</p>" % str(e) )
+        # Check if the data frame is empty
+        if quandl_data.empty:
+            # If so, it is likely that the quandl_code is invalid
+            raise ValueError('Make sure {0} are valid Quandl codes'.format(quandl_code))
+
+        return quandl_data
 
 
 

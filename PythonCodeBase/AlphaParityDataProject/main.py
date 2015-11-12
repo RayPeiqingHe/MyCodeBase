@@ -7,18 +7,35 @@ import QuandlUtils as q
 from datetime import datetime
 
 
+def parser_datetime(input):
+    """Function to parse the string into date"""
+
+    if input is None:
+        return None
+
+    return datetime.strptime(input , '%Y-%m-%d')
+
 def get_api_key():
     """Read the API key from the command line argument"""
 
     import argparse
 
-    #Parse the command line argument
+    # Parse the command line argument
     parser = argparse.ArgumentParser(description='Quandl Utils tester')
 
-    #Add argument for the input amount
+    # Add argument for the input amount
+    # The command line argument for API key
     parser.add_argument('-k', action="store", dest="k", type=str, const=None, help="Quandl API key")
 
+    # The command line argument for start date
+    parser.add_argument('-s', action="store", dest="s", type=parser_datetime, const=None, help="Start date of the query")
+
+    # The command line argument for end date
+    parser.add_argument('-d', action="store", dest="d", type=parser_datetime, const=None, help="End Date of the query")
+
     args = parser.parse_args()
+
+    print args.s
 
     # Read the API key from the command line argument
     return args.k
@@ -78,14 +95,18 @@ def main():
     cols = ['Soybean', 'Soybean_oil']
 
     # Initialize the case study object
-    study = FutureCaseStudy(key)
+    study = FutureCaseStudy(api_key=key)
 
     df_prices = study.get_future_price(future_price_query.get_query_cols(), cols, start_dt=start_dt, end_dt= end_dt)
 
     df_soybean_ctr = study.get_ctr(CTR_query.get_query_cols(), cols, start_dt=start_dt, end_dt= end_dt)
 
+
+
     # 3. Visualize the raw data in python, we would like to see two charts for each commodity
     study.visualize_data(df_prices, df_soybean_ctr, cols)
+
+
 
     # 4. Calculate correlation for daily returns between soybean and soybean oil
     corr = study.compute_corr(df_prices, [cols[0] + '_daily_ret', cols[1] + '_daily_ret'])
