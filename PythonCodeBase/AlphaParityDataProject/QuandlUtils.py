@@ -8,6 +8,58 @@ from datetime import datetime
 import sys
 
 
+class QuandlCodeHelper(object):
+
+    """
+    This class contains helper class to construct the list of columns to query.
+    For multiple datatable that has a similar structure, we can typically query
+    all of the data at once. This helper class provide function to construct the query.
+    """
+
+    def __init__(self, quandl_codes, columns_pos = None):
+        """The constructor of the class
+
+        :param quandl_codes: It is equivalent to the name of the source table. It value can be
+            either a string ot a llst of string
+            To find the quandl_code for a particular data, you can always run the
+            search method from Quandl.
+
+            For exmaple: Quandl.search('OIL'). The output will be
+
+            {u'code': u'NSE/OIL',
+             u'colname': [u'Date',
+             u'Open',
+             u'High',
+            u'Low',
+            u'Last',
+            u'Close',
+            u'Total Trade Quantity',
+            u'Turnover (Lacs)'],
+            u'desc': u'Historical prices for Oil India Limited (OIL), (ISIN: INE274J01014),
+            National Stock Exchange of India.',
+            u'freq': u'daily',
+            u'name': u'Oil India Limited'}
+        :param  columns_pos: The column position in the Quandl table. You can also find it from
+            the search function
+        """
+
+        self._quandl_codes = quandl_codes
+
+        self._columns_pos = columns_pos
+
+    def get_query_cols(self):
+        """This method dynamicly construct the list of columns to query from Quandl"""
+
+        if self._columns_pos is None or len(self._columns_pos) == 0:
+            # If no column position is specified, just return the Quandl code
+            return self._quandl_codes
+        else:
+            # Otherwise dynamicly construct the list of columns to query
+            cols = [t + '.' + str(s) for t in self._quandl_codes for s in self._columns_pos]
+
+            return cols
+
+
 class QuandlUtils(object):
 
     """
@@ -16,8 +68,7 @@ class QuandlUtils(object):
 
     def __init__(self, api_key = None):
 
-        """
-        The constructor of the class
+        """The constructor of the class
 
         :param api_key: the API key for querying data from Quandl. You can still acess data from Quandl
                         without the API key. But you can only call the Quandl function 50 times per day.
@@ -27,9 +78,6 @@ class QuandlUtils(object):
 
         # Store the API key
         self._api_key = api_key
-
-        # A dictionary tp store the download data from Quandl
-        self.quandl_data = None
 
     def get_data(self, quandl_code, start_dt = None, end_dt = None):
 
@@ -65,35 +113,7 @@ class QuandlUtils(object):
             e = sys.exc_info()[0]
             print( "<p>Error: %s</p>" % str(e) )
 
-    def store_data_in_file(self, file_name, file_type = 'csv'):
 
-        """
-        This export the quandl data into a file
-
-        :param file_name: The name of the output file
-
-        :param file_type: The type of the output file. Currently it only support csv and Excel format
-        """
-
-        if self.quandl_data is None:
-            raise ValueError('You need to first query data from Quandl by calling get_data method')
-
-        if file_type == 'csv':
-            self.quandl_data.to_csv(file_name)
-        elif file_type == 'xlsx':
-            self.quandl_data.to_excel(file_name, sheet_name='Sheet1')
-        else:
-            raise ValueError('Invliad file type!')
-
-    def select_data_by_cols(self, cols):
-        """
-
-        :param cols: The list of columns we are interested in
-
-        :return: The resulted dataframe containing only the input columns
-        """
-
-        return self.quandl_data[cols]
 
 
 
