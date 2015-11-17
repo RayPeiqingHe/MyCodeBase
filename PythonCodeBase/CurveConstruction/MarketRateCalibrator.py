@@ -49,6 +49,8 @@ class MarketRateCalibrator(object):
             for item in  self._mkt_rate_objs:
                 error += self.square_error(item.calibrate(x[:self._n], x[self._n:]), item.act())
             pnty = self._rc.Tikhonov_regularizer(x[:self._n], x[self._n:], self._lambdas, self.T0, self.T_max)
+            #pnty = self._rc.Tikhonov_regularizer(x[:self._n], x[self._n:], self._lambdas)
+
             return error + pnty
 
         res = optimize.minimize(f, self._x0, method='BFGS', options={'disp': True, 'gtol': factr})

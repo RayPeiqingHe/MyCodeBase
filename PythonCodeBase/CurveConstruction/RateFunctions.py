@@ -39,36 +39,46 @@ class Rate_Functions(object):
         return exp( np.dot(f[0:self.length], self.integral_list(S,T)))
 
     def libor_fwd_rate(self, S, T, l):
-        if T==S:
-            return 0
-        return  (exp(np.dot(l[0:self.length], self.integral_list(S,T))) - 1) / (T - S)
+        if S == T:
+            return self.inst_libor_fwd_rate(S, l)
+        else:
+            return  (exp(np.dot(l[0:self.length], self.integral_list(S,T))) - 1) / (T - S)
 
     def PV_Swap(self,tenor,fixed_rate,fopt,lopt,N=100,T_0=0):
         day_count_fix = 2
         day_count_float = 4
         annuity = 0.0
         for t in range(1, int(round(day_count_fix * tenor)) + 1):
-            annuity += self.disc_factor(0, t, fopt)
+            annuity += self.disc_factor(0, t, fopt)/day_count_fix
         p_float = 0.0
         for t in range(1, int(round(day_count_float * tenor)) + 1):
-                p_float += self.libor_fwd_rate( (t - 1) / day_count_float, t / day_count_float, lopt) *  self.disc_factor(0, t / day_count_float, fopt)
+                p_float += self.libor_fwd_rate( (t - 1) / day_count_float, t / day_count_float, lopt) *  self.disc_factor(0, t / day_count_float, fopt)/day_count_float
         return N*(fixed_rate*annuity-p_float)
 
-    def swap_rate(self, T_0, tenor, f, l):
-        annuity = 0
-        day_count_fix=2
-        day_count_float = 4
-        for t in range(1, int(round(day_count_fix * tenor)) + 1):
-            annuity += self.disc_factor(0, T_0 + t / day_count_fix, f)
+    def swap_rate(self, T_0, tenor, ffr, lbr, f_0 = 0):
+        fix_freq, float_freq = 2, 4
+        annuity = 0 #annuity function
+        for t in xrange(1, int(round(fix_freq * tenor)) + 1):
+            #annuity += self.disc_factor(0, T_0 + t / fix_freq, ffr)
+            annuity += self.disc_factor(0, T_0 + t / fix_freq, ffr) / fix_freq
+
         p_float = 0
-        for t in range(1, int(round(day_count_float * tenor)) + 1):
-            l_temp = self.libor_fwd_rate( (t - 1) / day_count_float, t / day_count_float, l)
-            p_float += l_temp * self.disc_factor(0, T_0 + t / day_count_float, f)
-        result = p_float / annuity
-        return result
+        for t in xrange(1, int(round(float_freq * tenor)) + 1):
+            lr = self.libor_fwd_rate( (t - 1) / float_freq, t / float_freq, lbr)
+
+            if t == 1 and f_0 != 0:
+                lr = f_0
+
+            p_float += lr * self.disc_factor(0, T_0 + t / float_freq, ffr) / float_freq
+
+        ret = p_float / annuity
+        return ret
 
     def ois_fwd_rate(self, S, T, f):
-        return self.fwd_rate(S, T, f)
+        if S == T:
+            return self.inst_ois_fwd_rate(S, f)
+        else:
+            return self.fwd_rate(S, T, f)
 
     def libor_ois_spread(self, S, T, f, l):
         return self.libor_fwd_rate(S, T, l) - self.ois_fwd_rate(S, T, f)
@@ -91,16 +101,28 @@ class Rate_Functions(object):
     def inst_libor_fwd_rate(self, T, l):
         return np.dot(l[0:self.length], self.bf_list(T))
 
-    def Tikhonov_regularizer(self, f, l, lam):
+    def Tikhonov_regularizer(self, ffr, lbr, lam, T_0, T_max):
         """
-        Part of Optimization
+        Compute the Tikhonov regularizer in the objective function
+        :param ffr: from index -3 to N
+        :param lbr: from index -3 to N
+        :param lam: lambda in the Tikhonov regularizer
+        :param T_0: The beginning time
+        :param T_max: The ending time
+        :return:
+        """
+        f_square = self.B_Spline.sec_deriv_integral_square(ffr[0:self.length], T_0, T_max)
+
+        l_square = self.B_Spline.sec_deriv_integral_square(lbr[0:self.length], T_0, T_max)
+
+        return lam * (f_square + l_square)
         """
         temp = f**2 + l**2
         if isinstance(lam, float):
             return lam*np.dot(temp[0:self.length], self.b_cross_integral_list)
         if isinstance(lam, np.ndarray):
             return sum(lam[0:self.length] * temp[0:self.length] * self.b_cross_integral_list)
-
+        """
     def integral_list(self, S, T):
         """
         Gamma!
@@ -110,12 +132,17 @@ class Rate_Functions(object):
         except KeyError:
             result = np.zeros(self.length)
             for k in range(0, self.length):
+                #Bug fix: if T < self.T[k], make it 0
+                if T <= self.T[k]:
+                    result[k] = 0
+                    continue
                 lower = max(S, self.T[k])
                 upper = min(T, self.T[k + self.d + 1])
                 gamma = self.B_Spline.b_integral(k, self.d, upper) - self.B_Spline.b_integral(k, self.d, lower)
                 result[k] = gamma
             self.Integral_List[(S,T)] = result
         return result
+
 
     def b_cross_integral(self, S, T):
         return np.array([self.B_Spline.b_cross_integral(k, k, S, T)**2 for k in range(0, self.length)])
@@ -125,3 +152,5 @@ class Rate_Functions(object):
 
     def fwd_rate(self, S, T, l):
         return self.libor_fwd_rate(S, T, l)
+    def bf(self, T):
+        return self.bf_list(self, T)
