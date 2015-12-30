@@ -38,6 +38,6 @@ class constant_short_rate(object):
         else:
             dlist = np.array(date_list)
 
-        dflist = np.exp(self.short_rate, np.sort(-dlist))
+        dflist = np.exp(self.short_rate * np.sort(-dlist))
 
         return np.array((date_list, dflist)).T

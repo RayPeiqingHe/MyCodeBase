@@ -20,3 +20,10 @@ from simulation_class import  simulation_class
 from geometric_brownian_motion import geometric_brownian_motion
 from jump_diffusion import jump_diffusion
 from square_root_diffusion import square_root_diffusion
+
+
+# valuation
+from valuation_class import valuation_class
+from valuation_mcs_european import valuation_mcs_european
+from plot_option_stats import plot_option_stats
+from valuation_mcs_american import valuation_mcs_american
