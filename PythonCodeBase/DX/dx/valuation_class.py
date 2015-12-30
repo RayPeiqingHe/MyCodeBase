@@ -55,6 +55,10 @@ class valuation_class(object):
             # provide pricing date and maturity to underlying
             self.underlying.special_dates.extend([self.pricing_date,
                                                   self.maturity])
+        except KeyError, e:
+            print 'I got a KeyError - reason "%s"' % str(e)
+        except AttributeError, e:
+            print 'I got a AttributeError - reason "%s"' % str(e)
         except:
             print 'Error parsing market environment'
 

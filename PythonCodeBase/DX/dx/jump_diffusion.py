@@ -5,6 +5,7 @@ __author__ = 'Ray'
 # jump_diffusion.py
 #
 import numpy as np
+import sys
 
 from sn_random_numbers import sn_random_numbers
 from simulation_class import simulation_class
@@ -39,6 +40,7 @@ class jump_diffusion(simulation_class):
             self.delta = mar_env.get_constant('delta')
         except:
             print 'Error parsing market environment.'
+            print "Unexpected error:", sys.exc_info()[0]
 
     def update(self, initial_value=None, volatility=None, lamb=None,
                mu=None, delta=None, final_date=None):

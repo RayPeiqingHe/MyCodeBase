@@ -36,6 +36,10 @@ class square_root_diffusion(simulation_class):
             # additional parameters needed
             self.kappa = mar_env.get_constant('kappa')
             self.theta = mar_env.get_constant('theta')
+        except KeyError, e:
+            print 'I got a KeyError - reason "%s"' % str(e)
+        except AttributeError, e:
+            print 'I got a AttributeError - reason "%s"' % str(e)
         except:
             print 'Error parsing market environment.'
 
