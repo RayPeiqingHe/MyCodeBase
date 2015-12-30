@@ -31,3 +31,4 @@ from valuation_mcs_american import valuation_mcs_american
 
 # portfolio
 from derivatives_position import derivatives_position
+from derivatives_portfolio import derivatives_portfolio

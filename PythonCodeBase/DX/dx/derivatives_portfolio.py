@@ -10,6 +10,8 @@ import pandas as pd
 
 from dx import *
 
+# We only deal with the following models and options
+
 # models available for risk factor modeling
 models = {'gbm' : geometric_brownian_motion,
           'jd' : jump_diffusion,
@@ -92,6 +94,7 @@ class derivatives_portfolio(object):
         time_grid.sort()
         self.time_grid = np.array(time_grid)
         self.val_env.add_list('time_grid', self.time_grid)
+
         if correlations is not None:
             # take care of correlations
             ul_list = sorted(self.underlyings)
@@ -138,6 +141,8 @@ class derivatives_portfolio(object):
                 self.underlying_objects[asset] = model(asset, mar_env, corr=True)
             else:
                 self.underlying_objects[asset] = model(asset, mar_env, corr=False)
+
+        # Now underlying_objects contains either the jump model or GBM model
 
         for pos in positions:
             # select right valuation class (European, American)
