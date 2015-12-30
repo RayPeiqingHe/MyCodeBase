@@ -27,3 +27,7 @@ from valuation_class import valuation_class
 from valuation_mcs_european import valuation_mcs_european
 from plot_option_stats import plot_option_stats
 from valuation_mcs_american import valuation_mcs_american
+
+
+# portfolio
+from derivatives_position import derivatives_position
