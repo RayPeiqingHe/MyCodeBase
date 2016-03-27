@@ -30,8 +30,8 @@ DateRange <- dateRangeInput(
   #,width="200px"
 )
 
-lookBackInput <- numericInput("lookBack", "Look Back", 10,
-                              min = 1, max = 100, ,width="100px")
+lookBackInput <- numericInput("lookBack", "Look Back", 60,
+                              min = 1, max = 100, width="100px")
 
 
 exVars <- checkboxGroupInput(
@@ -65,7 +65,7 @@ ui <- basicPage(
                 
                 ,lookBackInput
                 
-                ,selectInput("depdentVar", "Select Dependant Var", choices = NULL)
+                ,selectInput("dependVar", "Select Dependant Var", choices = NULL)
                 
                 ,actionButton("calculate","Calculate")
                 
@@ -78,7 +78,11 @@ ui <- basicPage(
   )
       ,
       div(style="position: absolute; left: 410px; right: 0; top: 0; height: auto;",
-              textOutput("lookBack")
+          titlePanel(""),
+          mainPanel(tableOutput("t1")
+                    ,fluidRow(column(5, chartOutput("f1", "nvd3")),
+                              column(5, chartOutput("f2", "nvd3")))
+                    )
         )
   )
 

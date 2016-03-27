@@ -19,6 +19,32 @@ ShowPopup <- function(session, msg){
 
 shinyServer(function(input, output, session) {
 
+  colData <- reactive({
+
+    cols <- c("Date", input$dependVar, input$exVars)
+    
+    d <- inData[, cols]
+    
+    d
+  })
+  
+  filterData <- reactive({
+    subset(colData(),
+           Date >= as.Date(input$date_range[1]) &
+             Date <= as.Date(input$date_range[2])
+    )
+    
+  }
+  )
+  
+  periodicity <- reactive({
+
+    if (input$periodicity == 1)
+      252.
+    else
+      12.
+  })
+  
   lookBack <- reactive({
 
     input$lookBack
@@ -37,12 +63,25 @@ shinyServer(function(input, output, session) {
     
     if (lookBack() < 1)
       ShowPopup(session, "Please enter a valid positive number")
+    else if (is.null(input$periodicity))
+      ShowPopup(session, "Please specify periodicity")
+    else if (length(input$exVars) == 0)
+      ShowPopup(session, "Please check at least one Explainatory Vars")
+    else if (input$date_range[1] > input$date_range[2])
+      ShowPopup(session, "Start Date must be less than End Date")
+    else if (input$date_range[1] > maxDate || input$date_range[2] < minDate)
+      ShowPopup(session, paste("Date range must be between", minDate, "and", maxDate))
     else
-      lookBack()
+    {
+      t1 <- T1(filterData(), periodicity())
+      
+      f1 <- F1(filterData(), input$dependVar, input$exVars)
+        
+      list(t1 = t1, f1 = f1)  
+    }
   })
   
-  output$lookBack <- renderText({
-    calc()
-  })
+  output$t1 <- renderTable({calc()$t1})
 
+  output$f1 <- renderChart2({calc()$f1})
 })
