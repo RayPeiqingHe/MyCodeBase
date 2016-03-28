@@ -11,6 +11,10 @@ ExcelDate <- function(dt) {as.Date(dt - 2, origin="1900-1-1")}
 
 percent_format <- "#!function(y) {return y.toFixed(2)}!#"
 
+yearmonth_format <- "#!function(d) {
+  return d3.time.format.utc('%x')(new Date(d * 24 * 60 * 60 * 1000));
+}!#"
+
 # Percent format ##.##%
 percent_format2 <- "#! function(d) {return (d*100).toFixed(2) + '%' } !#"
 
@@ -56,6 +60,8 @@ T1 <- function(d, pd) {
   # Maximum drawdown
   ts_ret <- xts(d[data_cols], d$Date)
   
+  mdd <- maxDrawdown(ts_ret) * 100
+  
   d <- d[,data_cols]
   
   # Annual Return
@@ -73,14 +79,16 @@ T1 <- function(d, pd) {
   
   rownames(sharpe) <- "sharpe"
   
-  tb <- rbind(tb, vol, sharpe, maxDrawdown(ts_ret) * 100)
+  # Ret / DD
+  retDD <- tb / mdd
+  rownames(retDD) = "Ret/DD"
+  
+  tb <- rbind(tb, vol, sharpe, mdd, retDD)
 }
 
 F1 <- function(d, dependVar, exVars) {
 
   fit <- lm(d[[dependVar]] ~ . , data = d[exVars])
-  
-  
   
   pred <- fitted(fit)
   
@@ -104,5 +112,135 @@ F1 <- function(d, dependVar, exVars) {
       ,showControls	= FALSE
     )
     
+  out
+}
+
+F2 <- function(d, dependVar, exVars, lookback) {
+  
+  data_cols <- colnames(d)[colnames(d) != 'Date']
+  
+  # Convert to time series object
+  ts_ret <- xts(d[data_cols], d$Date)
+  
+  dolm <- function(x) coef(lm(x[,dependVar] ~ ., data = x[, exVars]))
+  
+  reg <- na.omit(rollapplyr(ts_ret, lookback, dolm, by.column = FALSE))
+  
+  reg <- data.frame(date=index(reg), coredata(reg))
+  
+  d <- reg[, c("date", "X.Intercept.")]
+  
+  colnames(d) <- c("date", "y")
+  
+  d <- cbind(d, s = "Alpha")
+  
+  y_list <- list(Alpha = list(type="bar", yAxis = 2))
+  
+  for (col in colnames(reg))
+  {
+    if (col != "X.Intercept." && col != "date")
+    {
+      tmp <- cbind(reg[, c("date", col)], s = col)
+      
+      colnames(tmp) <- c("date", "y", "s")
+      
+      d <- rbind(d, tmp)
+      
+      y_list[[col]] <- list(type="line", yAxis = 1)
+    }
+  }
+  
+  out <- nPlot(y ~ date,
+               data  = d,
+               type  = "multiChart"
+               ,group = "s"
+  ) 
+  # %T>%
+  #   
+  #   .$yAxis(tickFormat=percent_format2) %T>%
+  #   .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
+  #   .$set(width=900, height=600)
+  
+  #Set which axes the item should follow
+  out$params$multi <- y_list
+  
+  #Format xAxis from R date format to JS time format
+  #Printed as dd-mm-yyyy
+  out$xAxis(
+    tickFormat=yearmonth_format, rotateLabels=-45
+  )
+  
+  #for multi we need yAxis1 and yAxis2
+  #but there is not a method like for yAxis and xAxis
+  #so let's do it the hacky way in the template
+  
+  out$setTemplate( script = sprintf(
+    "<script>
+ $(document).ready(function(){
+    draw{{chartId}}()
+});
+    function draw{{chartId}}(){  
+    var opts = {{{ opts }}},
+    data = {{{ data }}}
+    
+    if(!(opts.type==='pieChart')) {
+    var data = d3.nest()
+    .key(function(d){
+    return opts.group === undefined ? 'main' : d[opts.group]
+    })
+    .entries(data);
+    }
+    
+    //loop through to give an expected x and y
+    //then give the type and yAxis hopefully provided by R
+    data.forEach(function(variables) {
+    variables.values.forEach(function(values){
+    values.x = values[opts.x];
+    values.y = values[opts.y];
+    });
+    variables.type = opts.multi[variables.key].type;
+    variables.yAxis = opts.multi[variables.key].yAxis;
+    });
+    
+    
+    nv.addGraph(function() {
+    var chart = nv.models[opts.type]()
+    //.x(function(d) { return d[opts.x] })
+    //.y(function(d) { return d[opts.y] })
+    .width(opts.width)
+    .height(opts.height)
+    
+    {{{ chart }}}
+    
+    {{{ xAxis }}}
+    
+    {{{ x2Axis }}}
+    
+    // here is the problem we need yAxis1 and yAxis2
+    // for now let's manually specify
+    
+    // here is how we could force the y Axis range or limits
+    // as an example 0 to 100000
+    chart.yDomain1( [-1.5,1.5] );
+    
+    // format so 10000 appears as 10,000
+    chart.yAxis1.tickFormat( d3.format( '0,0.0f ' ) )
+    
+    //chart.yDomain2 ( [ -0.005, 0.005 ] );
+    
+    
+    d3.select('#' + opts.id)
+    .append('svg')
+    .datum(data)
+    .transition().duration(500)
+    .call(chart);
+    
+    nv.utils.windowResize(chart.update);
+    return chart;
+    });
+    };
+    </script>
+    "))
+  
   out
 }
