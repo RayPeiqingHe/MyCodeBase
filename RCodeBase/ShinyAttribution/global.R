@@ -53,7 +53,10 @@ UpdateSelectInput <- function(session, file)
 }
 
 
-T1 <- function(d, pd) {
+T1 <- function(d, pd, dependVar, exVars) {
+  
+  if(!exists("fit"))
+    fit <<- lm(d[[dependVar]] ~ . , data = d[exVars])
   
   data_cols <- colnames(d)[colnames(d) != 'Date']
   
@@ -83,12 +86,20 @@ T1 <- function(d, pd) {
   retDD <- tb / mdd
   rownames(retDD) = "Ret/DD"
   
-  tb <- rbind(tb, vol, sharpe, mdd, retDD)
+  # Beta and Alpha
+  coeff <- t(data.frame(coefficients(fit))) * 100
+
+  colnames(coeff)[1] = dependVar
+
+  rownames(coeff) = "Beta"
+  
+  tb <- rbind(tb, vol, sharpe, mdd, retDD, coeff)
 }
 
 F1 <- function(d, dependVar, exVars) {
 
-  fit <- lm(d[[dependVar]] ~ . , data = d[exVars])
+  if(!exists("fit"))
+     fit <<- lm(d[[dependVar]] ~ . , data = d[exVars])
   
   pred <- fitted(fit)
   
@@ -207,7 +218,7 @@ F2 <- function(d, dependVar, exVars, lookback) {
     var chart = nv.models[opts.type]()
     //.x(function(d) { return d[opts.x] })
     //.y(function(d) { return d[opts.y] })
-    .width(opts.width)
+    .width(opts.width - 25)
     .height(opts.height)
     
     {{{ chart }}}
@@ -226,7 +237,8 @@ F2 <- function(d, dependVar, exVars, lookback) {
     // format so 10000 appears as 10,000
     chart.yAxis1.tickFormat( d3.format( '0,0.0f ' ) )
     
-    //chart.yDomain2 ( [ -0.005, 0.005 ] );
+    chart.yDomain2 ( [ -0.002, 0.002 ] );
+    chart.yAxis2.tickFormat( d3.format( '0,0.0f ' ) )
     
     
     d3.select('#' + opts.id)
