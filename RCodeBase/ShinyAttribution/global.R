@@ -55,8 +55,7 @@ UpdateSelectInput <- function(session, file)
 
 T1 <- function(d, pd, dependVar, exVars) {
   
-  if(!exists("fit"))
-    fit <<- lm(d[[dependVar]] ~ . , data = d[exVars])
+  fit <- lm(d[[dependVar]] ~ . , data = d[exVars])
   
   data_cols <- colnames(d)[colnames(d) != 'Date']
   
@@ -86,20 +85,29 @@ T1 <- function(d, pd, dependVar, exVars) {
   retDD <- tb / mdd
   rownames(retDD) = "Ret/DD"
   
-  # Beta and Alpha
-  coeff <- t(data.frame(coefficients(fit))) * 100
-
-  colnames(coeff)[1] = dependVar
-
+  # Beta
+  coeff <- t(data.frame(coefficients(fit)))
+  
+  # Rename columns since the lm function prefic and postfix single quote to 13D
+  colnames(coeff) = c(dependVar, exVars)
+  
+  # Alpha
+  alpha <- coeff
+  
   rownames(coeff) = "Beta"
   
-  tb <- rbind(tb, vol, sharpe, mdd, retDD, coeff)
+  coeff[, dependVar] <- NA
+  
+  rownames(alpha) = "Alpha (10e-4)"
+  
+  alpha[, exVars] <- NA
+  
+  tb <- rbind(tb, vol, sharpe, mdd, retDD, coeff, alpha * 10000)
 }
 
 F1 <- function(d, dependVar, exVars) {
 
-  if(!exists("fit"))
-     fit <<- lm(d[[dependVar]] ~ . , data = d[exVars])
+  fit <- lm(d[[dependVar]] ~ . , data = d[exVars])
   
   pred <- fitted(fit)
   
@@ -107,7 +115,28 @@ F1 <- function(d, dependVar, exVars) {
   
   colnames(d) <- c("y", "x")
   
-  d <- cbind(d, size="8", s="Regression")
+  # Plot of the best fit line
+  bestFit <- lm(y ~ x , data = d)
+  
+  bestFitLine <- fitted(bestFit)
+  
+  d <- cbind(d, size="1", s="Regression")
+  
+  d %<>%
+  {rbind(
+    .,
+    lm(y~x, .) %>%
+    {model=.;
+    seq(min(.$model[,2]), max(.$model[,2]), length.out=200) %>%
+      cbind(
+        x=.,
+        y=predict(model, newdata=data.frame(x=.)),
+        s="Best Fit",
+        size="1"
+      )}
+  )} %T>%
+  {.$s %<>% as.character} %T>%
+  {.[, 1:2] %<>% lapply(as.numeric)}
   
   out <- nPlot(y ~ x,
                data  = d,
