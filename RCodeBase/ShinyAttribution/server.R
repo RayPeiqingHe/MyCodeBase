@@ -77,11 +77,9 @@ shinyServer(function(input, output, session) {
       
       f1 <- F1(filterData(), input$dependVar, input$exVars)
       
-      #f2 <- F2(filterData(), input$dependVar, input$exVars, input$lookBack)
+      f2 <- F2(filterData(), input$dependVar, input$exVars, input$lookBack)
         
-      #list(t1 = t1, f1 = f1, f2=f2)
-      
-      list(t1 = t1, f1 = f1)
+      list(t1 = t1, f1 = f1, f2=f2)
     }
   })
   
@@ -89,5 +87,5 @@ shinyServer(function(input, output, session) {
 
   output$f1 <- renderChart2({calc()$f1})
   
-  #output$f2 <- renderChart2({calc()$f2})
+  output$f2 <- renderChart2({calc()$f2})
 })

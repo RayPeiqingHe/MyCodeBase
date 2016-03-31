@@ -146,7 +146,7 @@ F1 <- function(d, dependVar, exVars) {
     
     .$yAxis(tickFormat=percent_format2, axisLabel=dependVar) %T>%
     .$xAxis(tickFormat=percent_format2, axisLabel=paste("Predicted",dependVar)) %T>%
-    .$set(width=900, height=600) %T>%
+    .$set(width=750, height=400) %T>%
     .$chart(
       size		= '#! function(d){return d.size} !#'
       ,showControls	= FALSE
@@ -172,9 +172,11 @@ F2 <- function(d, dependVar, exVars, lookback) {
   
   colnames(d) <- c("date", "y")
   
+  left <- max(d$y)
+  
   d <- cbind(d, s = "Alpha")
   
-  y_list <- list(Alpha = list(type="bar", yAxis = 2))
+  y_list <- list(Alpha = list(type="bar", yAxis = 1))
   
   for (col in colnames(reg))
   {
@@ -186,20 +188,17 @@ F2 <- function(d, dependVar, exVars, lookback) {
       
       d <- rbind(d, tmp)
       
-      y_list[[col]] <- list(type="line", yAxis = 1)
+      y_list[[col]] <- list(type="line", yAxis = 2)
     }
   }
+  
+  right <- max(d[d$s != "Alpha", ]$y)
   
   out <- nPlot(y ~ date,
                data  = d,
                type  = "multiChart"
                ,group = "s"
   ) 
-  # %T>%
-  #   
-  #   .$yAxis(tickFormat=percent_format2) %T>%
-  #   .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
-  #   .$set(width=900, height=600)
   
   #Set which axes the item should follow
   out$params$multi <- y_list
@@ -213,75 +212,89 @@ F2 <- function(d, dependVar, exVars, lookback) {
   #for multi we need yAxis1 and yAxis2
   #but there is not a method like for yAxis and xAxis
   #so let's do it the hacky way in the template
-  
-  out$setTemplate( script = sprintf(
-    "<script>
- $(document).ready(function(){
-    draw{{chartId}}()
-});
-    function draw{{chartId}}(){  
-    var opts = {{{ opts }}},
-    data = {{{ data }}}
-    
-    if(!(opts.type==='pieChart')) {
-    var data = d3.nest()
-    .key(function(d){
-    return opts.group === undefined ? 'main' : d[opts.group]
-    })
-    .entries(data);
-    }
-    
-    //loop through to give an expected x and y
-    //then give the type and yAxis hopefully provided by R
-    data.forEach(function(variables) {
-    variables.values.forEach(function(values){
-    values.x = values[opts.x];
-    values.y = values[opts.y];
-    });
-    variables.type = opts.multi[variables.key].type;
-    variables.yAxis = opts.multi[variables.key].yAxis;
-    });
-    
-    
-    nv.addGraph(function() {
-    var chart = nv.models[opts.type]()
-    //.x(function(d) { return d[opts.x] })
-    //.y(function(d) { return d[opts.y] })
-    .width(opts.width - 25)
-    .height(opts.height)
-    
-    {{{ chart }}}
-    
-    {{{ xAxis }}}
-    
-    {{{ x2Axis }}}
-    
-    // here is the problem we need yAxis1 and yAxis2
-    // for now let's manually specify
-    
-    // here is how we could force the y Axis range or limits
-    // as an example 0 to 100000
-    chart.yDomain1( [-1.5,1.5] );
-    
-    // format so 10000 appears as 10,000
-    chart.yAxis1.tickFormat( d3.format( '0,0.0f ' ) )
-    
-    chart.yDomain2 ( [ -0.002, 0.002 ] );
-    chart.yAxis2.tickFormat( d3.format( '0,0.0f ' ) )
-    
-    
-    d3.select('#' + opts.id)
-    .append('svg')
-    .datum(data)
-    .transition().duration(500)
-    .call(chart);
-    
-    nv.utils.windowResize(chart.update);
-    return chart;
-    });
-    };
-    </script>
-    "))
+  out$setTemplate( script = getFormatMultiChartYAxesScript(
+    left * -1, left, right * -1, right, "d3.format( '.2%' )", "d3.format( '.2f' )"
+  ))
   
   out
 }
+
+# Script for formatting multiChart's y-axes scale and tick mark format
+getFormatMultiChartYAxesScript <-
+  function(lowLeftY, highLeftY, lowRightY, highRightY,
+           leftYTickFuncString, rightYTickFuncString){
+    script <-
+      paste0(
+        "<script>
+        $(document).ready(function(){
+        draw{{chartId}}()
+        });
+        
+        function draw{{chartId}}(){  
+        var opts = {{{ opts }}},
+        data = {{{ data }}}
+        
+        if (!(opts.type==='pieChart')) {
+        var data = d3.nest()
+        .key(function(d){
+        return opts.group === undefined ? 'main' : d[opts.group]
+        })
+        .entries(data);
+        }
+        
+        //loop through to give an expected x and y
+        //then give the type and yAxis hopefully provided by R
+        data.forEach(
+        function(variables) {
+        variables.values.forEach(
+        function(values){
+        values.x = values[opts.x];
+        values.y = values[opts.y];
+        }
+        );
+        variables.type = opts.multi[variables.key].type;
+        variables.yAxis = opts.multi[variables.key].yAxis;
+        }
+        );
+        
+        nv.addGraph(function() {
+        var chart = nv.models[opts.type]()
+        //.x(function(d) { return d[opts.x] })
+        //.y(function(d) { return d[opts.y] })
+        // Shrink the width a bit such that both axes' tick marks can fit
+        .width(opts.width - 25)
+        .height(opts.height)
+        
+        {{{ chart }}}
+        
+        {{{ xAxis }}}
+        
+        {{{ x2Axis }}}
+        
+        // here is the problem we need yAxis1 and yAxis2
+        // for now let's manually specify
+
+                // here is how we could force the y Axis range or limits
+                chart.yDomain1([", lowLeftY,",", highLeftY,"]);
+
+                // y Axis limits for right axis
+                chart.yDomain2 ([", lowRightY, ",", highRightY, "]);
+
+                // format so 10000 appears as 10k, apply thousand seperator as well
+                chart.yAxis1.tickFormat(", leftYTickFuncString, ");
+
+                chart.yAxis2.tickFormat(", rightYTickFuncString, ");
+
+                d3.select('#' + opts.id)
+        .append('svg')
+        .datum(data)
+        .transition().duration(500)
+        .call(chart);
+        
+        nv.utils.windowResize(chart.update);
+        return chart;
+        });
+        };
+        </script>")
+    return(script)
+  }
