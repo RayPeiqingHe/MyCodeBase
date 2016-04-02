@@ -1,7 +1,6 @@
 __author__ = 'Ray'
 
 from numpy import *
-from numpy.linalg import *
 
 # Marginal portfolio cutoff
 muc = 0.0001

@@ -51,7 +51,7 @@ class hedging_engine(object):
 
         self._delta_limit_abs = delta_limit_abs
 
-    def run_simulation(self, is_partial_hedge, num_of_runs = 10000):
+    def run_simulation_vectorized(self, is_partial_hedge, num_of_runs = 10000):
         """
         Tick off the Monte Carlos simulation
 
@@ -63,60 +63,63 @@ class hedging_engine(object):
         # compute the vol for each time step
         step_vol = self._annual_vol / sqrt(self._trading_days_per_year * 24 * 3600 / self._simulate_interval)
 
-        pnl_list = []
+        # Keep track of total PnL of the current simulation path
+        tot_pnl = array([0.] * num_of_runs)
 
-        # loop through all paths
-        for i in range(0, num_of_runs):
-            # Keep track of total PnL of the current simulation path
-            tot_pnl = 0
+        # Keep track of total position of the current simulation path
+        tot_pos = array([0.] * num_of_runs)
 
-            # Keep track of total position of the current simulation path
-            tot_pos = 0
+        # keep track of the current spot rate
+        spot_rate = array([self._spot_rate] * num_of_runs)
 
-            # keep track of the current spot rate
-            spot_rate = self._spot_rate
+        for i in range(0, self._tot_steps):
+            # generate a uniform random number in (0,1)
+            p = random.uniform(size = num_of_runs)
 
-            for i in range(0, self._tot_steps):
-                # generate a uniform random number in (0,1)
-                p = random.uniform()
+            if i > 0:
+                # simulate a standard normal variable
+                z = random.normal(size = num_of_runs)
 
-                if i > 0:
-                    # simulate a standard normal variable
-                    z = random.normal()
+                # compute the change in spot rate
+                # we assume spot has the process: ds = sigma * dw
+                d_spot_rate = step_vol * z #* sqrt(self._simulate_interval)
 
-                    # compute the change in spot rate
-                    # we assume spot has the process: ds = sigma * dw
-                    d_spot_rate = step_vol * z * sqrt(self._simulate_interval)
+                tot_pnl += d_spot_rate * tot_pos
 
-                    tot_pnl += d_spot_rate * tot_pos
+            tot_pos[p < self._trade_prob] += self._simulate_client_trade_vectorized(num_of_runs)[p < self._trade_prob]
 
-                if (p < self._trade_prob):
-                    tot_pos += self._simulate_client_trade()
+            tot_pnl[p < self._trade_prob] += self._client_spread / 2.
 
-                    tot_pnl += self._client_spread / 2.
+            tot_pnl += self._simulate_dealer_trade_vectorized(tot_pos, is_partial_hedge, num_of_runs)
 
-                    # Check if the total position exceed the delta limit
-                    if abs(tot_pos) > self._delta_limit_abs:
-                        tot_pnl += self._simulate_dealer_trade(tot_pos, is_partial_hedge)
+            # Check if the total position exceed the delta limit and update the position accordingly
+            if is_partial_hedge:
+                tot_pos[abs(tot_pos) > self._delta_limit_abs] = \
+                    sign(tot_pos[abs(tot_pos) > self._delta_limit_abs]) * self._delta_limit_abs
+            else:
+                tot_pos[abs(tot_pos) > self._delta_limit_abs] = 0
 
-                        if is_partial_hedge:
-                            tot_pos = sign(tot_pos) * self._delta_limit_abs
-                        else:
-                            tot_pos = 0
+        std = tot_pnl.std()
 
-            pnl_list.append(tot_pnl)
-
-        pnl_arr = array(pnl_list)
-
-        std = pnl_arr.std()
-
-        mean = pnl_arr.mean()
+        mean = tot_pnl.mean()
 
         print 'Sharpe ratio is {0}'.format(mean / std)
 
-        #print pnl_arr[:20]
+        #print tot_pnl[:20]
 
-    def _simulate_dealer_trade(self, tot_pos, is_partial_hedge):
+        #print tot_pos[:50]
+
+
+    def _simulate_client_trade_vectorized(self, num_of_paths):
+        trade_sign = random.uniform(size = num_of_paths)
+
+        trade_size = array([self._unit_size] * num_of_paths)
+
+        trade_size[trade_sign < 0.5] = -1 * self._unit_size
+
+        return trade_size
+
+    def _simulate_dealer_trade_vectorized(self, tot_pos, is_partial_hedge, num_of_paths):
         """
         Compute the pnl of the dealer trade
 
@@ -124,30 +127,17 @@ class hedging_engine(object):
         :return:
         """
 
+        # Intialize array
+        pnl = array([0.] * num_of_paths)
+
         if is_partial_hedge:
-            pnl = -0.5 * (abs(tot_pos) - self._delta_limit_abs) * self._dealer_spread
+            pnl[abs(tot_pos) > self._delta_limit_abs] = -0.5 * (abs(tot_pos[abs(tot_pos) > self._delta_limit_abs])
+                        - self._delta_limit_abs) * self._dealer_spread
         else:
-            pnl = -0.5 * abs(tot_pos) * self._dealer_spread
+            pnl[abs(tot_pos) > self._delta_limit_abs] = -0.5 * abs(tot_pos[abs(tot_pos) > self._delta_limit_abs])\
+                                                        * self._dealer_spread
 
         return pnl
-
-
-    def _simulate_client_trade(self):
-        """
-
-        Compute the PnL of the current trade
-        :return:
-        """
-
-        # generate a uniform random number in (0,1) to determine the trade size
-        p = random.uniform()
-
-        trade_size = self._unit_size
-
-        if p <= 0.5:
-            trade_size *= -1
-
-        return trade_size
 
 
 def main():
@@ -164,11 +154,12 @@ def main():
 
     is_partial_hedge = False
 
-    engine.run_simulation(is_partial_hedge)
+    engine.run_simulation_vectorized(is_partial_hedge, num_of_runs = 10000)
 
     is_partial_hedge = True
 
-    engine.run_simulation(is_partial_hedge)
+    engine.run_simulation_vectorized(is_partial_hedge)
 
 if __name__ == '__main__':
     main()
+

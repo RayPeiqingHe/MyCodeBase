@@ -221,3 +221,9 @@ log4net.*
 # Python project file
 *.xml
 *.iml
+.Rproj.user
+*.xlsx
+.*
+*.csv
+*.pdf
+*.zip

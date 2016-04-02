@@ -3,7 +3,7 @@ __author__ = 'Ray'
 from pandas import *
 import numpy as np
 
-num_trading_days_year = 252
+num_trading_days_year = 365.25
 
 def run_back_test(sp_data, varSwap, daysToExp):
     """
@@ -14,7 +14,8 @@ def run_back_test(sp_data, varSwap, daysToExp):
     :return:
     """
 
-    varSwap_sub = varSwap[(varSwap['BusinessDays'] == daysToExp)]
+    #varSwap_sub = varSwap[(varSwap['BusinessDays'] == daysToExp)]
+    varSwap_sub = varSwap
 
     if not ('LogReturns' in sp_data):
         sp_data['LogReturns'] = np.log(sp_data['gspc'] / sp_data.shift(1)['gspc'])
