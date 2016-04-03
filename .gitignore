@@ -227,3 +227,4 @@ log4net.*
 *.csv
 *.pdf
 *.zip
+*.ini
