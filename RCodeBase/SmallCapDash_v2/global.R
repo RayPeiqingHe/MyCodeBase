@@ -22,52 +22,45 @@ library(magrittr)
 library(ggplot2)
 library(openxlsx)
 
-#data_file <- file.path("data", "ShinyApp_backupData.xlsx")
-
-#DataGet <- . %>% {
-#  read.xlsx(data_file, sheet=3) %T>%
-#{colnames(.)  %<>% tolower} %T>%
-#{.[, c("date", "startdate", "enddate")] %<>% lapply(ExcelDate)} %T>%
-#{.[, c("sectorname", "instrument")] %<>% lapply(factor)} %T>%
-#{colnames(.) %<>% gsub("daily.return", "r", .)} %>%
-#  cbind(industry = paste("industry", 1:3))   # delete when you have the data.
-#}
-
 
 # Settings & Data
 # ------------------------------------------------------------------------------
 
-#data_file <- file.path("data", "SmallCap_Data_new_2.xlsx")
+#data_file <- file.path("data", "SmallCap_NewDataFormat.xlsx")
 
-data_file <- file.path("data", "SmallCap_NewDataFormat.xlsx")
+data_file <- file.path("data", "SmallCap_Shiny.csv")
 
 ExcelDate <- . %>% {as.Date(. - 2, origin="1900-1-1")}
+
+csvDate <- . %>% {as.Date(., "%m/%d/%Y")}
+
+ConvertNumeric <- . %>% {if (is.numeric(.)) as.numeric(.) else 0}
 
 
 # Changes by Ray
 # Format the input data frame by changing column name and format date value
 colMapping <- function(data){
-
+  
   colnames(data) = tolower(colnames(data))
   
   mapping = list('tradedate'='date', 'markettitle'="instrument", 
                  'porttype'="sectorname", "industrysector" = "industry"
-                 ,"prc_change"="daily.return")
+                 ,"silopnl_percent"="daily.return")
   
   
   for( key in names(mapping) ){ 
     colnames(data)[colnames(data)==key] <- mapping[[key]]
   }
   
-  data["date"] <- lapply(data["date"], ExcelDate)
+  data["date"] <- lapply(data["date"], csvDate)
+  
+  data["daily.return"] <- lapply(data["daily.return"], ConvertNumeric)
   
   data
 }
 
 DataGet <- . %>% {
-  read.xlsx(data_file, sheet=1) %>% colMapping %T>%
-  #{colnames(.)	%<>% tolower} %T>%
-  #{.[, c("date", "startdate", "enddate")] %<>% lapply(ExcelDate)} %T>%
+  read.csv(data_file) %>% colMapping %T>%
   {.[, c("sectorname", "instrument")] %<>% lapply(factor)} %T>%
   {colnames(.) %<>% gsub("daily.return", "r", .)} %>%
   cbind(industry = paste("industry"))   # delete when you have the data.
@@ -128,18 +121,20 @@ F1 <- function(d, p) {
     {.$r %<>% {round(. * 100, 2)}} %>%
     {.[, c("date", "sectorname", "r")]}
 
-  for(s in p) {
-    d %<>% {
-      rbind(
-        .,
-        data.frame(
-          date=(min(subset(., sectorname == s)$date) - 1), sectorname=s, r=0
-        )
-      )
-    }
-  }
+  # for(s in p) {
+  #   d %<>% {
+  #     rbind(
+  #       .,
+  #       data.frame(
+  #         date=(min(subset(., sectorname == s)$date) - 1), sectorname=s, r=0
+  #       )
+  #     )
+  #   }
+  # }
 
   d %<>% arrange(sectorname, date)
+  
+  print(head(d))
   
   out <- nPlot(r ~ date,
     data  = d,
@@ -152,7 +147,7 @@ F1 <- function(d, p) {
   .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
     
   .$chart(margin = list(bottom=100)) %T>%
-  .$set(width=900, height=600)
+  .$set(width=1350, height=900)
 
   out
 }

@@ -15,6 +15,12 @@ shinyServer(function(input, output, session) {
     }
     )
     
+    portfolios <- reactive(
+    {
+      c(input$portfoliosLongOnly, input$portfoliosHedge)
+    }
+    )
+    
     # Changes by Ray
     # Update the date range for MTD button
     observeEvent(input$mtd, {
@@ -32,11 +38,11 @@ shinyServer(function(input, output, session) {
       UpdateDateRange(session, dateRange[1], dateRange[2])
     })
     
-  output$f1 <- renderChart2({F1(e(), input$portfolios)})
+  output$f1 <- renderChart2({F1(e(), portfolios())})
 
-  output$f2 <- renderChart2({F2(e(), input$portfolios[1:2])})
-  output$f3 <- renderChart2({F3(e(), input$portfolios)})
-  output$t1 <- renderTable({T1(e(), input$portfolios) %>% data.frame})
+  output$f2 <- renderChart2({F2(e(), portfolios())})
+  output$f3 <- renderChart2({F3(e(), portfolios())})
+  #output$t1 <- renderTable({T1(e(), portfolios()) %>% data.frame})
   
-  output$f4 <- renderChart2({F4(e(), input$portfolios)})
+  output$f4 <- renderChart2({F4(e(), portfolios())})
 })
