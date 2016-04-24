@@ -85,7 +85,8 @@ DateRange <- . %>% {dateRangeInput(
 ui2 <- shinyUI(basicPage(
   # Changes by Ray
   # Handler for the popup
-  tags$head(tags$script(HTML('Shiny.addCustomMessageHandler("jsCode",function(message) {eval(message.value);});'))
+  tags$head(
+    tags$script(HTML('Shiny.addCustomMessageHandler("jsCode",function(message) {eval(message.value);});'))
   ),
   
   titlePanel("RQSI SmallCap Dashboard"),
@@ -119,8 +120,22 @@ ui2 <- shinyUI(basicPage(
       ),
       div(style="position: absolute; left: 310px; right: 0; top: 0; height: auto;",
           tabsetPanel(
-            "Performance" %>% tabPanel(chartOutput("f1", "nvd3"), tableOutput("t1")),
-            "Daily Scatterplot" %>% tabPanel(chartOutput("f2", "nvd3")), 
+            "Performance" %>% 
+              tabPanel(
+                chartOutput("f1", "nvd3"), 
+                tableOutput("t1"),
+                tags$script(HTML("
+                        var p = document.getElementById('t1')
+                        $(p).attr('align', 'center');"))
+                ),
+            "Daily Scatterplot" %>% 
+              tabPanel(
+                chartOutput("f2", "nvd3"),
+                htmlOutput("t2"),
+                tags$script(HTML("
+                                 var p = document.getElementById('t2')
+                                 $(p).attr('align', 'center');"))
+                ), 
             "Position Distribution"	%>% tabPanel(chartOutput("f3", "nvd3"))
             ,"Exposure" %>% tabPanel(chartOutput("f4", "nvd3"))
           )

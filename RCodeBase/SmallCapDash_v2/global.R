@@ -209,9 +209,9 @@ F2 <- function(d, p) {
   
   corr <- subset(d, s == "Actual") %>% {cor(.[,"x"], .[,"y"])} %>% round(4)
   
-  xlabel <- paste("Correlation between", p[2], "(y) and", p[1], "(x) = ",corr)
+  xlabel <- paste("Regression between", p[2], "(y) and", p[1], "(x)")
   
-  nPlot(y~x,
+  plot <- nPlot(y~x,
     data  = d,
     type  = "scatterChart",
     group = "s"
@@ -226,6 +226,18 @@ F2 <- function(d, p) {
      size		= '#! function(d){return d.size} !#',
      showControls	= FALSE
   )
+  
+  print(model)
+  
+  corrText <- paste("Corr = ", corr)
+  alpha <- paste("Alpha =", coefficients(model)[1])
+  beta <- paste("Beta =", coefficients(model)[2])
+  
+  text <- HTML(paste(corrText, alpha, beta, sep = '<br/>'))
+  
+  plot
+  
+  list(plot=plot, text=text)
 }
 
 
