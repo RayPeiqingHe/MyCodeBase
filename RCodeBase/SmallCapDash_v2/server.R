@@ -40,9 +40,9 @@ shinyServer(function(input, output, session) {
     
   output$f1 <- renderChart2({F1(e(), portfolios())})
 
-  output$f2 <- renderChart2({F2(e(), portfolios())})
+  output$f2 <- renderChart2({F2(e(), portfolios()[1:2])})
   output$f3 <- renderChart2({F3(e(), portfolios())})
-  #output$t1 <- renderTable({T1(e(), portfolios()) %>% data.frame})
+  output$t1 <- renderTable({T1(e(), portfolios()) %>% data.frame})
   
   output$f4 <- renderChart2({F4(e(), portfolios())})
 })

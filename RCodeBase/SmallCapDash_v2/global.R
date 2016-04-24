@@ -34,8 +34,6 @@ ExcelDate <- . %>% {as.Date(. - 2, origin="1900-1-1")}
 
 csvDate <- . %>% {as.Date(., "%m/%d/%Y")}
 
-ConvertNumeric <- . %>% {if (is.numeric(.)) as.numeric(.) else 0}
-
 
 # Changes by Ray
 # Format the input data frame by changing column name and format date value
@@ -60,13 +58,18 @@ colMapping <- function(data){
 }
 
 DataGet <- . %>% {
-  read.csv(data_file) %>% colMapping %T>%
+  read.csv(data_file, na.strings = "NULL", stringsAsFactors=FALSE) %>% colMapping %T>%
   {.[, c("sectorname", "instrument")] %<>% lapply(factor)} %T>%
   {colnames(.) %<>% gsub("daily.return", "r", .)} %>%
   cbind(industry = paste("industry"))   # delete when you have the data.
 }
 
-if(!exists("d")) {assign("d", DataGet())}
+if(!exists("d")) 
+{
+  assign("d", DataGet())
+  
+  d[is.na(d$industry),]$industry <- "NA"
+}
 
 # Changes by Ray
 # Store the min date and max date from data
@@ -118,23 +121,12 @@ F1 <- function(d, p) {
   d %<>%
     subset(sectorname %in% p) %>%
     DailyReturns(cum=T, fun=mean) %T>%
-    {.$r %<>% {round(. * 100, 2)}} %>%
+    {.$r %<>% {round(. * 100, 4)}} %>%
     {.[, c("date", "sectorname", "r")]}
-
-  # for(s in p) {
-  #   d %<>% {
-  #     rbind(
-  #       .,
-  #       data.frame(
-  #         date=(min(subset(., sectorname == s)$date) - 1), sectorname=s, r=0
-  #       )
-  #     )
-  #   }
-  # }
 
   d %<>% arrange(sectorname, date)
   
-  print(head(d))
+  TestData <<- d
   
   out <- nPlot(r ~ date,
     data  = d,
@@ -162,22 +154,20 @@ T1 <- function(d, p) {
   d %<>% subset(sectorname %in% p)
 
   DailyReturns(d, cum=F, fun=mean) %T>%
-  {.$r %<>% {round(. * 100, 2)}} %>% {
+  {.$r %<>% {round(. * 100, 5)}} %>% {
     aggregate(
       .$r,
       list(.$sectorname),
       . %>% {c(
-        #Return=sum(.),
         # Changes by Ray
         # Change to use Annualized return
-        Return=(prod(1 + . / 100) ^ (252. / length(.)) - 1) * 100,
+        Return=sum(.) * 252. / length(.),
         Risk=(sd(.) * sqrt(252)),
         "Max Rtn" = max(.),
         "Ave. Rtn" = mean(.),
         "Median Rtn" = median(.),
         "Min Rtn" = min(.),
         "% Positive" = (mean(. > 0) * 100) %>% round(2) )
-        #"% Positive" = (nrow(.>0)/nrow(.)))
         }
   )} %T>%
 
@@ -185,7 +175,6 @@ T1 <- function(d, p) {
   
   out[,2] %T>%
     {rownames(.) <- out[,1]} %T>%
-    #{colnames(.) <- c("Return", "Risk", "MaxRtn", "AvgRtn","MedRtn", "MinRtn", "PcPositive")}
     {colnames(.) <- c("Return", "Risk", "MaxRtn", "AvgRtn","MedRtn", "MinRtn", "PcPositive")}
 }
 
@@ -195,11 +184,10 @@ F2 <- function(d, p) {
   # `p` list of portfolios to plot.
   # `d` data.
 
-
   d %<>%
     subset(sectorname %in% p) %>%
     DailyReturns(cum=F, fun=mean) %T>%
-    {.$r %<>% {round(. * 100, 2)}} %>%
+    {.$r %<>% {round(. * 100, 5)}} %>%
     {dcast(data=., formula=date ~ sectorname, value.var="r")[,-1]} %T>%
     {colnames(.) <- c("x", "y")} %>%
     {.[complete.cases(.),]} %>%
@@ -218,10 +206,10 @@ F2 <- function(d, p) {
     )} %T>%
     {.$s %<>% as.character} %T>%
     {.[, 1:2] %<>% lapply(as.numeric)}
-
+  
   corr <- subset(d, s == "Actual") %>% {cor(.[,"x"], .[,"y"])} %>% round(4)
-
-  print(d)
+  
+  xlabel <- paste("Correlation between", p[2], "(y) and", p[1], "(x) = ",corr)
   
   nPlot(y~x,
     data  = d,
@@ -230,8 +218,9 @@ F2 <- function(d, p) {
   ) %T>%
 
   .$yAxis(tickFormat=percent_format) %T>%
-  .$xAxis(tickFormat=percent_format, axisLabel=paste("Correlation =",corr)) %T>%
-  .$set(width=900, height=600) %T>%
+  .$xAxis(tickFormat=percent_format, axisLabel=
+            xlabel) %T>%
+  .$set(width=1350, height=900) %T>%
   .$chart(
      sizeRange		= c(2, 80),
      size		= '#! function(d){return d.size} !#',
@@ -258,7 +247,7 @@ F3 <- function(d, p) {
 
   .$yAxis(tickFormat=percent_format) %T>%
   .$xAxis(tickValues=1:length(p)) %T>%
-  .$set(width=900, height=600) %T>%
+  .$set(width=1350, height=900) %T>%
   .$chart(
     forceX       = c(.5, length(p) + .5),
     showControls = T,
@@ -297,7 +286,7 @@ F4 <- function(d, p) {
     .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
     
     .$chart(margin = list(bottom=100)) %T>%
-    .$set(width=900, height=600)
+    .$set(width=1350, height=900)
   
   out
 }
