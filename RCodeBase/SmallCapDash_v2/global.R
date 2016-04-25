@@ -32,12 +32,14 @@ data_file <- file.path("data", "SmallCap_Shiny.csv")
 
 ExcelDate <- . %>% {as.Date(. - 2, origin="1900-1-1")}
 
-csvDate <- . %>% {as.Date(., "%m/%d/%Y")}
+csvDate <- . %>% {as.Date(., "%Y-%m-%d")}
 
 
 # Changes by Ray
 # Format the input data frame by changing column name and format date value
 colMapping <- function(data){
+  
+  d2 <<- data
   
   colnames(data) = tolower(colnames(data))
   
@@ -58,7 +60,7 @@ colMapping <- function(data){
 }
 
 DataGet <- . %>% {
-  read.csv(data_file, na.strings = "NULL", stringsAsFactors=FALSE) %>% colMapping %T>%
+  read.csv(data_file, na.strings = "NULL", stringsAsFactors=FALSE, fileEncoding="UTF-8-BOM") %>% colMapping %T>%
   {.[, c("sectorname", "instrument")] %<>% lapply(factor)} %T>%
   {colnames(.) %<>% gsub("daily.return", "r", .)} %>%
   cbind(industry = paste("industry"))   # delete when you have the data.
@@ -191,10 +193,14 @@ F2 <- function(d, p) {
     {dcast(data=., formula=date ~ sectorname, value.var="r")[,-1]} %T>%
     {colnames(.) <- c("x", "y")} %>%
     {.[complete.cases(.),]} %>%
-    cbind(s="Actual", size="1.5") %>%
+    cbind(s="Actual", size="1.5") 
+  
+  model <- lm(y~x, d)
+  
+  d %<>%
     {rbind(
        .,
-       lm(y~x, .) %>%
+       model %>%
        {model=.;
         seq(min(.$model[,2]), max(.$model[,2]), length.out=200) %>%
         cbind(
@@ -227,34 +233,30 @@ F2 <- function(d, p) {
      showControls	= FALSE
   )
   
-  print(model)
-  
   corrText <- paste("Corr = ", corr)
-  alpha <- paste("Alpha =", coefficients(model)[1])
-  beta <- paste("Beta =", coefficients(model)[2])
+  alpha <- paste("Alpha =", round(coefficients(model)[1], 7))
+  beta <- paste("Beta =", round(coefficients(model)[2], 4))
   
   text <- HTML(paste(corrText, alpha, beta, sep = '<br/>'))
-  
-  plot
   
   list(plot=plot, text=text)
 }
 
 
-F3 <- function(d, p) {
+F3 <- function(d, p, groupby) {
   #  Scatterchart of return per asset per portfolio.
-
+  
   d %<>%
     subset(sectorname %in% p) %>%
-    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, ticker=.$instrument), sum)} %T>%
+    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), sum)} %T>%
     {.$sectorname %<>% factor} %T>%
     {.$p <- .$sectorname %>% as.numeric} %T>%
     {.$r %<>% {round(100 * ., 2)}}
-
-  nPlot(r~p,
+  
+  plot <- nPlot(r~p,
     data  = d,
     type  = "scatterChart",
-    group = "sectorname"
+    group = groupby
   ) %T>%
 
   .$yAxis(tickFormat=percent_format) %T>%
@@ -262,20 +264,20 @@ F3 <- function(d, p) {
   .$set(width=1350, height=900) %T>%
   .$chart(
     forceX       = c(.5, length(p) + .5),
-    showControls = T,
+    showControls = TRUE,
     sizeRange=c(100, 100),
     showXAxis = FALSE,
     tooltips = TRUE,
-    tooltipContent = 
+    tooltipContent =
       "#! function(key, x, y, e){
         return '<h3>' + e.point.ticker + '</h3> <br><h4> Current position: ' + e.point.r + '</h4>'
       } !#"
-
   )
+  
+  plot
 }
 
-
-# Changes byvRay
+# Changes by Ray
 # Area chart for Net exposure
 F4 <- function(d, p) {
   # Net exposure of the combined portfolio.

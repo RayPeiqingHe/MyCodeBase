@@ -60,6 +60,13 @@ Industries <- . %>% {checkboxGroupInput(
   inline                = FALSE
 )}
 
+GroupBy <- function()
+{
+  selectInput("groupby", "Group By:",
+              c("Sub-Portfolio" = "sectorname",
+                "Industry" = "industry"))
+  
+}
 
 DateRange <- . %>% {dateRangeInput(
   # GUI input to define the portfolios to view.
@@ -118,7 +125,7 @@ ui2 <- shinyUI(basicPage(
                 ,Indices()
               
       ),
-      div(style="position: absolute; left: 310px; right: 0; top: 0; height: auto;",
+      div(align = "center", style="position: absolute; left: 310px; right: 0; top: 0; height: auto;",
           tabsetPanel(
             "Performance" %>% 
               tabPanel(
@@ -136,7 +143,11 @@ ui2 <- shinyUI(basicPage(
                                  var p = document.getElementById('t2')
                                  $(p).attr('align', 'center');"))
                 ), 
-            "Position Distribution"	%>% tabPanel(chartOutput("f3", "nvd3"))
+            "Position Distribution"	%>% tabPanel(
+              GroupBy()
+              ,chartOutput("f3", "nvd3")
+              )
+            
             ,"Exposure" %>% tabPanel(chartOutput("f4", "nvd3"))
           )
       )

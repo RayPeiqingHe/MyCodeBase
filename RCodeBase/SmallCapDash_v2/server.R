@@ -5,6 +5,10 @@ library(shiny)
 
 shinyServer(function(input, output, session) {
 
+    groupBy <- reactive({
+      input$groupby
+    })   
+  
     e <- reactive({
       
       subset(d,
@@ -43,13 +47,12 @@ shinyServer(function(input, output, session) {
   output$f1 <- renderChart2({F1(e(), portfolios())})
   
   output$t1 <- renderTable({T1(e(), portfolios()) %>% data.frame})
-
-  #output$f2 <- renderChart2({F2(e(), portfolios()[1:2])$plot})
+  
   output$f2 <- renderChart2({calc()$plot})
   
   output$t2 <- renderUI({calc()$text})
   
-  output$f3 <- renderChart2({F3(e(), portfolios())})
+  output$f3 <- renderChart2({F3(e(), portfolios(), groupBy())})
   
   output$f4 <- renderChart2({F4(e(), portfolios())})
 })
