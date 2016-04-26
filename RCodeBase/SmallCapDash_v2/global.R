@@ -34,12 +34,14 @@ ExcelDate <- . %>% {as.Date(. - 2, origin="1900-1-1")}
 
 csvDate <- . %>% {as.Date(., "%Y-%m-%d")}
 
+cum.na <- function(x) { 
+  x[which(is.na(x))] <- 0 
+  return(cumsum(x)) 
+}
 
 # Changes by Ray
 # Format the input data frame by changing column name and format date value
 colMapping <- function(data){
-  
-  d2 <<- data
   
   colnames(data) = tolower(colnames(data))
   
@@ -53,8 +55,6 @@ colMapping <- function(data){
   }
   
   data["date"] <- lapply(data["date"], csvDate)
-  
-  data["daily.return"] <- lapply(data["daily.return"], ConvertNumeric)
   
   data
 }
@@ -93,7 +93,7 @@ DailyReturns <- function(d, cum, fun) {
 
   d[,"r", drop=FALSE] %>%
   {aggregate(.,list(date=d$date, sectorname=d$sectorname), fun, na.rm=T)} %T>%
-  {if(cum) {.$r <- tapply(.$r, .$sectorname, cumsum) %>% unlist}}
+  {if(cum) {.$r <- tapply(.$r, .$sectorname, cum.na) %>% unlist}}
 }
 
 
@@ -120,15 +120,15 @@ F1 <- function(d, p) {
   # `p` list of portfolios to plot.
   # `d` data.
   
-  d %<>%
-    subset(sectorname %in% p) %>%
-    DailyReturns(cum=T, fun=mean) %T>%
-    {.$r %<>% {round(. * 100, 4)}} %>%
-    {.[, c("date", "sectorname", "r")]}
-
   d %<>% arrange(sectorname, date)
   
-  TestData <<- d
+  d[d$date == d[1,]$date,]$r <- 0
+  
+  d %<>%
+    subset(sectorname %in% p) %>%
+    DailyReturns(cum=T, fun=sum) %T>%
+    {.$r %<>% {round(. * 100, 4)}} %>%
+    {.[, c("date", "sectorname", "r")]}
   
   out <- nPlot(r ~ date,
     data  = d,
@@ -154,8 +154,10 @@ T1 <- function(d, p) {
   # `d` data.
 
   d %<>% subset(sectorname %in% p)
-
-  DailyReturns(d, cum=F, fun=mean) %T>%
+  
+  d <- d[d$date != d[1,]$date,]
+  
+  DailyReturns(d, cum=F, fun=sum) %T>%
   {.$r %<>% {round(. * 100, 5)}} %>% {
     aggregate(
       .$r,
@@ -163,13 +165,13 @@ T1 <- function(d, p) {
       . %>% {c(
         # Changes by Ray
         # Change to use Annualized return
-        Return=sum(.) * 252. / length(.),
-        Risk=(sd(.) * sqrt(252)),
-        "Max Rtn" = max(.),
-        "Ave. Rtn" = mean(.),
-        "Median Rtn" = median(.),
-        "Min Rtn" = min(.),
-        "% Positive" = (mean(. > 0) * 100) %>% round(2) )
+        Return=sum(.,na.rm=TRUE) * 252. / length(.),
+        Risk=(sd(.,na.rm=TRUE) * sqrt(252)),
+        "Max Rtn" = max(.,na.rm=TRUE),
+        "Ave. Rtn" = mean(.,na.rm=TRUE),
+        "Median Rtn" = median(.,na.rm=TRUE),
+        "Min Rtn" = min(.,na.rm=TRUE),
+        "% Positive" = (mean(. > 0,na.rm=TRUE) * 100) %>% round(2) )
         }
   )} %T>%
 
@@ -186,9 +188,13 @@ F2 <- function(d, p) {
   # `p` list of portfolios to plot.
   # `d` data.
 
+  d %<>% subset(sectorname %in% p)
+  
+  d <- d[d$date != d[1,]$date,]
+  
   d %<>%
     subset(sectorname %in% p) %>%
-    DailyReturns(cum=F, fun=mean) %T>%
+    DailyReturns(cum=F, fun=sum) %T>%
     {.$r %<>% {round(. * 100, 5)}} %>%
     {dcast(data=., formula=date ~ sectorname, value.var="r")[,-1]} %T>%
     {colnames(.) <- c("x", "y")} %>%
@@ -246,9 +252,14 @@ F2 <- function(d, p) {
 F3 <- function(d, p, groupby) {
   #  Scatterchart of return per asset per portfolio.
   
+  d %<>% subset(sectorname %in% p)
+  
+  d <- d[d$date != d[1,]$date,]
+  
   d %<>%
     subset(sectorname %in% p) %>%
-    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), sum)} %T>%
+    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
+               function(x)sum(na.exclude(x)))} %T>%
     {.$sectorname %<>% factor} %T>%
     {.$p <- .$sectorname %>% as.numeric} %T>%
     {.$r %<>% {round(100 * ., 2)}}
@@ -282,6 +293,10 @@ F3 <- function(d, p, groupby) {
 F4 <- function(d, p) {
   # Net exposure of the combined portfolio.
   # `d` data.
+  
+  d %<>% subset(sectorname %in% p)
+  
+  d <- d[d$date != d[1,]$date,]
   
   d = subset(d, sectorname %in% p)
   

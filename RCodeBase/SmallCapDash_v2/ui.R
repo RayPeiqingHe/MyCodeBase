@@ -43,8 +43,6 @@ Indices <- function()
     
     choices = subset(d, portgroup == "INDEX")$industry %>% as.character %>% unique,
     
-    selected   = subset(d, portgroup == "INDEX")$industry %>% as.character %>% unique,
-    
     inline = FALSE
   )  
 }

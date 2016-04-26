@@ -8,20 +8,21 @@ shinyServer(function(input, output, session) {
     groupBy <- reactive({
       input$groupby
     })   
-  
+    
     e <- reactive({
       
       subset(d,
         date >= as.Date(input$date_range[[1]]) &
         date <= as.Date(input$date_range[[2]]) &
-        industry %in% input$industries
+        industry %in% c(input$industries, input$Indices)
       )
     }
     )
     
     portfolios <- reactive(
     {
-      c(input$portfoliosLongOnly, input$portfoliosHedge)
+      c(input$portfoliosLongOnly, input$portfoliosHedge, 
+        sapply(input$Indices, function(x){paste("INDEX -", x)}))
     }
     )
     
