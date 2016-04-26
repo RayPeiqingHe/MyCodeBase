@@ -19,6 +19,12 @@ shinyServer(function(input, output, session) {
     }
     )
     
+    portfoliosExIndices <- reactive(
+      {
+        c(input$portfoliosLongOnly, input$portfoliosHedge)
+      }
+    )
+    
     portfolios <- reactive(
     {
       c(input$portfoliosLongOnly, input$portfoliosHedge, 
@@ -55,5 +61,5 @@ shinyServer(function(input, output, session) {
   
   output$f3 <- renderChart2({F3(e(), portfolios(), groupBy())})
   
-  output$f4 <- renderChart2({F4(e(), portfolios())})
+  output$f4 <- renderChart2({F4(e(), portfoliosExIndices())})
 })
