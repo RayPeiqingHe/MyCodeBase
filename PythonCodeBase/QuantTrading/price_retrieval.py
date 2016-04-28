@@ -11,6 +11,7 @@ import warnings
 import pymssql as mdb
 import requests
 from ConfigParser import SafeConfigParser
+from decimal import Decimal
 
 
 # Obtain a database connection to the MySQL instance
@@ -64,9 +65,12 @@ def get_daily_historic_data_yahoo(
 
     # Try connecting to Yahoo Finance and obtaining the data
     # On failure, print an error message.
+
+    prices = []
+
     try:
         yf_data = requests.get(yahoo_url).text.split("\n")[1:-1]
-        prices = []
+
         for y in yf_data:
             p = y.strip().split(',')
             prices.append(
@@ -76,6 +80,36 @@ def get_daily_historic_data_yahoo(
     except Exception as e:
         print("Could not download Yahoo data: %s" % e)
     return prices
+
+
+def get_corporate_action_from_yahoo(
+        ticker, start_date=(2000,1,1),
+        end_date=datetime.date.today().timetuple()[0:3]
+    ):
+    ticker_tup = (
+        ticker, start_date[1]-1, start_date[2],
+        start_date[0], end_date[1]-1, end_date[2],
+        end_date[0]
+    )
+
+    yahoo_url = "http://ichart.finance.yahoo.com/x"
+    yahoo_url += "?s=%s&a=%s&b=%s&c=%s&d=%s&e=%s&f=%s&g=v&y=0&z=30000"
+    yahoo_url = yahoo_url % ticker_tup
+
+    corporate_actions = []
+    try:
+        yf_data = requests.get(yahoo_url).text.split("\n")[1:-5]
+
+        for y in yf_data:
+            p = y.strip().split(',')
+
+            corporate_actions.append(
+               (p[0], datetime.datetime.strptime(p[1].strip(), '%Y%M%d'), Decimal(p[2].split(':')[0])
+               if p[0] == 'SPLIT' else Decimal(p[2]), Decimal(p[2].split(':')[1])
+               if p[0] == 'SPLIT' else 0))
+    except Exception as e:
+        print("Could not download Yahoo data: %s" % e)
+    return corporate_actions
 
 
 def insert_daily_data_into_db(
@@ -117,10 +151,70 @@ def insert_daily_data_into_db(
             cur.executemany(final_str, daily_data)
 
 
+def insert_corporate_action_data_into_db(
+        data_vendor_id, symbol_id, corporate_action_data
+    ):
+    """
+    Takes a list of tuples of daily data and adds it to the
+    MySQL database. Appends the vendor ID and symbol ID to the data.
+
+    daily_data: List of tuples of the OHLC data (with
+    adj_close and volume)
+    """
+    # Create the time now
+    now = datetime.datetime.utcnow()
+
+    # Amend the data to include the vendor ID and symbol ID
+    corporate_action_data = [
+        (data_vendor_id, symbol_id, d[1], now, now,
+        d[0], d[2], d[3])
+        for d in corporate_action_data
+    ]
+
+    # Create the insert strings
+    column_str = """data_vendor_id, symbol_id, corporate_action_date, created_date,
+                 last_updated_date, corporate_action_type,
+                 prior_amount, ex_amount"""
+    insert_str = ("%s, " * 8)[:-2]
+    final_str = "INSERT INTO corporate_action (%s) VALUES (%s)" % \
+        (column_str, insert_str)
+
+    con = mdb.connect(
+        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        #, login_timeout=0
+    )
+
+    # Using the MySQL connection, carry out an INSERT INTO for every symbol
+    with con:
+        with con.cursor() as cur:
+            cur.executemany(final_str, corporate_action_data)
+
+
+def get_command_line_args():
+    """Read the all required inputs from the command line argument"""
+
+    import argparse
+
+    # Parse the command line argument
+    parser = argparse.ArgumentParser(description='Yahoo Data downloader')
+
+    # Add argument for the input amount
+    # The command line argument for API key
+    parser.add_argument('-t', action="store", dest="t", type=str, const=None, default= 'p',
+                        help="Data Type to download: p for daily prices and d for corporate actions")
+
+    args = parser.parse_args()
+
+    # Return all command line arguments
+    return args
+
+
 if __name__ == "__main__":
     # This ignores the warnings regarding Data Truncation
     # from the Yahoo precision to Decimal(19,4) datatypes
     warnings.filterwarnings('ignore')
+
+    args = get_command_line_args()
 
     # Loop over the tickers and insert the daily historical
     # data into the database
@@ -136,8 +230,12 @@ if __name__ == "__main__":
 
         while not success:
             try:
-                yf_data = get_daily_historic_data_yahoo(t[1])
-                insert_daily_data_into_db('1', t[0], yf_data)
+                if args.t == 'p':
+                    yf_data = get_daily_historic_data_yahoo(t[1])
+                    insert_daily_data_into_db('1', t[0], yf_data)
+                else:
+                    yf_data = get_corporate_action_from_yahoo(t[1])
+                    insert_corporate_action_data_into_db('1', t[0], yf_data)
 
                 success = True
             except mdb.InterfaceError as e:
