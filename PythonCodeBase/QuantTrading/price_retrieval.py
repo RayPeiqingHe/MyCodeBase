@@ -25,7 +25,7 @@ db_name = parser.get('log_in', 'db')
 db_user = parser.get('log_in', 'username')
 db_pass = parser.get('log_in', 'password')
 
-def obtain_list_of_db_tickers():
+def obtain_list_of_db_tickers(sql_query):
     """
     Obtains a list of the ticker symbols in the database.
     """
@@ -35,10 +35,10 @@ def obtain_list_of_db_tickers():
 
     with con:
         with con.cursor() as cur:
-            cur.execute("SELECT id, ticker FROM symbol")
+            cur.execute(sql_query)
             data = cur.fetchall()
 
-    return [(d[0], d[1]) for d in data]
+    return [(d[0], d[1], d[2]) for d in data]
 
 
 def get_daily_historic_data_yahoo(
@@ -218,7 +218,14 @@ if __name__ == "__main__":
 
     # Loop over the tickers and insert the daily historical
     # data into the database
-    tickers = obtain_list_of_db_tickers()
+
+    if args.t == 'p':
+        sql_query = "SELECT * FROM DBO.vw_last_missing_price_date ORDER BY ticker"
+    else:
+        sql_query = "SELECT * FROM DBO.vw_last_missing_corporate_action_date ORDER BY ticker"
+
+    tickers = obtain_list_of_db_tickers(sql_query)
+
     lentickers = len(tickers)
     for i, t in enumerate(tickers):
         print(
@@ -231,10 +238,14 @@ if __name__ == "__main__":
         while not success:
             try:
                 if args.t == 'p':
-                    yf_data = get_daily_historic_data_yahoo(t[1])
+                    yf_data = get_daily_historic_data_yahoo(t[1],
+                           start_date = datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+
                     insert_daily_data_into_db('1', t[0], yf_data)
                 else:
-                    yf_data = get_corporate_action_from_yahoo(t[1])
+                    yf_data = get_corporate_action_from_yahoo(t[1],
+                           start_date = datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+
                     insert_corporate_action_data_into_db('1', t[0], yf_data)
 
                 success = True

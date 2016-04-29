@@ -12,7 +12,20 @@ import pymssql as mdb
 import requests
 from ConfigParser import SafeConfigParser
 
-def obtain_parse_wiki_snp500():
+
+# Connect to the MySQL instance
+
+parser = SafeConfigParser()
+parser.read('config.ini')
+
+# Connect to the MySQL instance
+db_host = parser.get('log_in', 'host')
+db_name = parser.get('log_in', 'db')
+db_user = parser.get('log_in', 'username')
+db_pass = parser.get('log_in', 'password')
+
+
+def obtain_parse_wiki_snp500(existing_tickers):
     """
     Download and parse the Wikipedia list of S&P500
     constituents using requests and BeautifulSoup.
@@ -38,6 +51,12 @@ def obtain_parse_wiki_snp500():
     symbols = []
     for i, symbol in enumerate(symbolslist):
         tds = symbol.select('td')
+
+        ticker = tds[0].select('a')[0].text
+
+        if ticker in existing_tickers:
+            continue
+
         symbols.append(
             (
                 tds[0].select('a')[0].text,  # Ticker
@@ -50,19 +69,30 @@ def obtain_parse_wiki_snp500():
     return symbols
 
 
+def get_existing_symbols_from_db():
+    """
+    Pull the existing symbols from SQL db
+
+    :return:
+    """
+    con = mdb.connect(
+        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+    )
+
+    sql_query = "select ticker from symbol"
+
+    with con:
+        with con.cursor() as cur:
+            cur.execute(sql_query)
+            data = cur.fetchall()
+
+    return set([d[0] for d in data])
+
+
 def insert_snp500_symbols(symbols):
     """
     Insert the S&P500 symbols into the MySQL database.
     """
-    # Connect to the MySQL instance
-    parser = SafeConfigParser()
-    parser.read('config.ini')
-
-    # Connect to the MySQL instance
-    db_host = parser.get('log_in', 'host')
-    db_name = parser.get('log_in', 'db')
-    db_user = parser.get('log_in', 'username')
-    db_pass = parser.get('log_in', 'password')
 
     con = mdb.connect(
         server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
@@ -84,7 +114,13 @@ def insert_snp500_symbols(symbols):
 
 
 if __name__ == "__main__":
-    symbols = obtain_parse_wiki_snp500()
-    insert_snp500_symbols(symbols)
+
+    existing_tickers = get_existing_symbols_from_db()
+
+    symbols = obtain_parse_wiki_snp500(existing_tickers)
+
+    if (len(symbols) > 0):
+        insert_snp500_symbols(symbols)
+
     print("%s symbols were successfully added." % len(symbols))
 
