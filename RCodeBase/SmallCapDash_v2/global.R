@@ -21,6 +21,7 @@ library(plyr)
 library(magrittr)
 library(ggplot2)
 library(openxlsx)
+library(ggvis)
 
 
 # Settings & Data
@@ -28,7 +29,9 @@ library(openxlsx)
 
 #data_file <- file.path("data", "SmallCap_NewDataFormat.xlsx")
 
-data_file <- file.path("data", "SmallCap_Shiny.csv")
+#data_file <- file.path("data", "SmallCap_Shiny.csv")
+
+data_file <- file.path("data", "Shiny_Example.csv")
 
 ExcelDate <- . %>% {as.Date(. - 2, origin="1900-1-1")}
 
@@ -56,11 +59,14 @@ colMapping <- function(data){
   
   data["date"] <- lapply(data["date"], csvDate)
   
+  #data["date"] <- lapply(data["date"], ExcelDate)
+  
   data
 }
 
 DataGet <- . %>% {
   read.csv(data_file, na.strings = "NULL", stringsAsFactors=FALSE, fileEncoding="UTF-8-BOM") %>% colMapping %T>%
+  #read.xlsx(data_file, sheet=1) %>% colMapping %T>%
   {.[, c("sectorname", "instrument")] %<>% lapply(factor)} %T>%
   {colnames(.) %<>% gsub("daily.return", "r", .)} %>%
   cbind(industry = paste("industry"))   # delete when you have the data.
@@ -84,15 +90,16 @@ dateRange <<- c(d$date %>% min, d$date %>% max)
 
 DailyReturns <- function(d, cum, fun) {
   # Mean return per portfolio per day.
-
+  
   # `cum` is either TRUE or FALSE (logical).
   # `fun` is either `mean` or `sum`.
-
+  
   # Sort df using sectorname and date
   d %<>% arrange(sectorname, date)
-
-  d[,"r", drop=FALSE] %>%
-  {aggregate(.,list(date=d$date, sectorname=d$sectorname), fun, na.rm=T)} %T>%
+  
+  d[d$positionallocation != 0,c("date", "sectorname", "pnl_percent", "positionallocation"), drop=FALSE] %>%
+  {aggregate(cbind(pnl_percent, positionallocation)~date+sectorname, data=., fun, na.rm=T)} %T>%
+  {.$r = (.$pnl_percent / .$positionallocation)} %T>%
   {if(cum) {.$r <- tapply(.$r, .$sectorname, cum.na) %>% unlist}}
 }
 
@@ -122,7 +129,7 @@ F1 <- function(d, p) {
   
   d %<>% arrange(sectorname, date)
   
-  d[d$date == d[1,]$date,]$r <- 0
+  d[d$date == d[1,]$date,]$pnl_percent <- 0
   
   d %<>%
     subset(sectorname %in% p) %>%
@@ -269,10 +276,11 @@ F3 <- function(d, p, groupby) {
     type  = "scatterChart",
     group = groupby
   ) %T>%
-
+    
   .$yAxis(tickFormat=percent_format) %T>%
   .$xAxis(tickValues=1:length(p)) %T>%
-  .$set(width=1350, height=900) %T>%
+  #.$xAxis(tickValues=p.f) %T>%
+  .$set(width=1200, height=800) %T>%
   .$chart(
     forceX       = c(.5, length(p) + .5),
     showControls = TRUE,
@@ -284,6 +292,41 @@ F3 <- function(d, p, groupby) {
         return '<h3>' + e.point.ticker + '</h3> <br><h4> Current position: ' + e.point.r + '</h4>'
       } !#"
   )
+  
+  plot
+}
+
+
+F3_2 <- function(d, p, groupby) {
+  #  Scatterchart of return per asset per portfolio.
+  
+  d %<>% subset(sectorname %in% p)
+  
+  d <- d[d$date != d[1,]$date,]
+  
+  d %<>%
+    subset(sectorname %in% p) %>%
+    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
+               function(x)sum(na.exclude(x)))} %T>%
+               {.$sectorname %<>% ordered(., levels = p)} %T>%
+               {.$r %<>% {round(100 * ., 2)}}
+  d$key = paste(d$sectorname, d$industry, ":", d$ticker, sep='') 
+  
+  d$zero = 0
+  
+  d$groups = d[, groupby]
+  
+  plot <- ggvis(d, x = ~sectorname, y = ~r, key := ~key, fill = ~groups) %>% 
+    layer_points() %>%
+    set_options(width = 1350, height = 900) %>%
+    add_axis("y", format = ".2f", title = "") %>%
+    add_axis("x", title = "", properties = axis_props(
+      axis = list(stroke = "black", strokeWidth = 3))) %>%
+    layer_paths(x = ~sectorname, y = ~zero, stroke:="black",  strokeWidth := 3) %>%
+    layer_points(size := 200, opacity := 0.4 )%>%
+    add_tooltip(function(data){
+      paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$r))
+    }, "hover") 
   
   plot
 }
@@ -300,7 +343,7 @@ F4 <- function(d, p) {
   
   d = subset(d, sectorname %in% p)
   
-  d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, by=list(date=d$date), FUN=sum)
+  d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, by=list(date=d$date), FUN=sum, na.rm=T)
   
   colnames(d) <- c("date", "netexposure")
   

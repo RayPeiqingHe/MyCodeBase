@@ -9,12 +9,15 @@ shinyServer(function(input, output, session) {
       input$groupby
     })   
     
+    industries <- reactive({
+      input$industries
+    })
+    
     e <- reactive({
-      
       subset(d,
         date >= as.Date(input$date_range[[1]]) &
         date <= as.Date(input$date_range[[2]]) &
-        industry %in% c(input$industries, input$Indices)
+        industry %in% c(industries(), input$Indices)
       )
     }
     )
@@ -49,6 +52,23 @@ shinyServer(function(input, output, session) {
       UpdateDateRange(session, dateRange[1], dateRange[2])
     })
     
+    observe({
+      if (input$selectall > 0) {
+        if (input$selectall %% 2 == 0){
+          updateCheckboxGroupInput(session=session, 
+                                   inputId="industries",
+                                   choices = subset(d, portgroup != "INDEX")$industry %>% as.character %>% unique,
+                                   selected = subset(d, portgroup != "INDEX")$industry %>% as.character %>% unique)
+          
+        } else {
+          updateCheckboxGroupInput(session=session, 
+                                   inputId="industries",
+                                   choices = subset(d, portgroup != "INDEX")$industry %>% as.character %>% unique,
+                                   selected = c())
+          
+        }}
+    })
+    
     calc <- function() {F2(e(), portfolios()[1:2])}
     
   output$f1 <- renderChart2({F1(e(), portfolios())})
@@ -59,7 +79,8 @@ shinyServer(function(input, output, session) {
   
   output$t2 <- renderUI({calc()$text})
   
-  output$f3 <- renderChart2({F3(e(), portfolios(), groupBy())})
+  #output$f3 <- renderChart2({F3(e(), portfolios(), groupBy())})
+  reactive({F3_2(e(), portfolios(), groupBy())}) %>% bind_shiny("f3")
   
   output$f4 <- renderChart2({F4(e(), portfoliosExIndices())})
 })

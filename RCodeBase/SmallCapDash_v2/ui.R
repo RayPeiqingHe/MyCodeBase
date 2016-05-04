@@ -105,6 +105,8 @@ ui2 <- shinyUI(basicPage(
                 
                 ,Industries()
                 
+                ,actionButton("selectall", label="Select/Deselect all")
+                
                 ,DateRange()
                 
                 # Changes by Ray
@@ -143,7 +145,8 @@ ui2 <- shinyUI(basicPage(
                 ), 
             "Position Distribution"	%>% tabPanel(
               GroupBy()
-              ,chartOutput("f3", "nvd3")
+              #,chartOutput("f3", "nvd3")
+              ,ggvisOutput("f3")
               )
             
             ,"Exposure" %>% tabPanel(chartOutput("f4", "nvd3"))
