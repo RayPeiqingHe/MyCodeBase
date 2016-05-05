@@ -58,9 +58,9 @@ Industries <- . %>% {checkboxGroupInput(
   inline                = FALSE
 )}
 
-GroupBy <- function()
+GroupBy <- function(id)
 {
-  selectInput("groupby", "Group By:",
+  selectInput(id, "Group By:",
               c("Sub-Portfolio" = "sectorname",
                 "Industry" = "industry"))
   
@@ -144,12 +144,17 @@ ui2 <- shinyUI(basicPage(
                                  $(p).attr('align', 'center');"))
                 ), 
             "Position Distribution"	%>% tabPanel(
-              GroupBy()
+              GroupBy("groupby")
               #,chartOutput("f3", "nvd3")
               ,ggvisOutput("f3")
               )
             
-            ,"Exposure" %>% tabPanel(chartOutput("f4", "nvd3"))
+            ,"Exposure" %>% tabPanel
+            (
+            #chartOutput("f4", "nvd3")
+            GroupBy("groupby2")
+            ,ggvisOutput("f4")
+            )
           )
       )
   )

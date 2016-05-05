@@ -9,6 +9,10 @@ shinyServer(function(input, output, session) {
       input$groupby
     })   
     
+    groupBy2 <- reactive({
+      input$groupby2
+    })   
+    
     industries <- reactive({
       input$industries
     })
@@ -82,5 +86,6 @@ shinyServer(function(input, output, session) {
   #output$f3 <- renderChart2({F3(e(), portfolios(), groupBy())})
   reactive({F3_2(e(), portfolios(), groupBy())}) %>% bind_shiny("f3")
   
-  output$f4 <- renderChart2({F4(e(), portfoliosExIndices())})
+  #output$f4 <- renderChart2({F4(e(), portfoliosExIndices())})
+  reactive({F4(e(), portfoliosExIndices(), groupBy2())}) %>% bind_shiny("f4")
 })

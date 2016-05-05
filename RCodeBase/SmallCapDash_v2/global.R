@@ -22,6 +22,7 @@ library(magrittr)
 library(ggplot2)
 library(openxlsx)
 library(ggvis)
+library(dplyr, warn.conflicts = FALSE)
 
 
 # Settings & Data
@@ -300,17 +301,19 @@ F3 <- function(d, p, groupby) {
 F3_2 <- function(d, p, groupby) {
   #  Scatterchart of return per asset per portfolio.
   
-  d %<>% subset(sectorname %in% p)
+  if (nrow(d) > 0 && length(p) > 0)
+  {
+    d %<>% subset(sectorname %in% p)
   
-  d <- d[d$date != d[1,]$date,]
+    d <- d[d$date != d[1,]$date,]
   
-  d %<>%
-    subset(sectorname %in% p) %>%
-    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
-               function(x)sum(na.exclude(x)))} %T>%
-               {.$sectorname %<>% ordered(., levels = p)} %T>%
-               {.$r %<>% {round(100 * ., 2)}}
-  d$key = paste(d$sectorname, d$industry, ":", d$ticker, sep='') 
+    d %<>%
+      subset(sectorname %in% p) %>%
+      {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
+                 function(x)sum(na.exclude(x)))} %T>%
+                 {.$sectorname %<>% ordered(., levels = p)} %T>%
+                 {.$r %<>% {round(100 * ., 2)}}
+    d$key = paste(d$sectorname, d$industry, ":", d$ticker, sep='') 
   
   d$zero = 0
   
@@ -327,38 +330,64 @@ F3_2 <- function(d, p, groupby) {
     add_tooltip(function(data){
       paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$r))
     }, "hover") 
+  }
+  else
+  {
+    d <- d[0,]
+    
+    plot <- ggvis(d, x = ~sectorname, y = ~r) %>% 
+      layer_points() %>%
+      set_options(width = 1350, height = 900)
+  }
   
   plot
 }
 
 # Changes by Ray
 # Area chart for Net exposure
-F4 <- function(d, p) {
+F4 <- function(d, p, groupby) 
+{
   # Net exposure of the combined portfolio.
   # `d` data.
   
-  d %<>% subset(sectorname %in% p)
-  
-  d <- d[d$date != d[1,]$date,]
-  
-  d = subset(d, sectorname %in% p)
-  
-  d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, by=list(date=d$date), FUN=sum, na.rm=T)
-  
-  colnames(d) <- c("date", "netexposure")
-  
-  out <- nPlot(netexposure ~ date,
-               data  = d,
-               #type  = "lineChart",
-               type = 'stackedAreaChart', id = 'chart',
-               reduceXTicks = FALSE
-  ) %T>%
+  if (nrow(d) > 0 && length(p) > 0)
+  {
+    d %<>% subset(sectorname %in% p)
     
-    .$yAxis(tickFormat=percent_format2) %T>%
-    .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
+    d <- d[d$date != d[1,]$date,]
     
-    .$chart(margin = list(bottom=100)) %T>%
-    .$set(width=1350, height=900)
+    d <- subset(d, sectorname %in% p)
+    
+    d$groups <- d[, groupby]
+    
+    d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, 
+                   by=list(date=d$date, groups=d$groups)
+                   , FUN=sum, na.rm=T)
+    
+    d$groups <- as.character(d$groups)
+    
+    colnames(d) <- c("date", "groups", "netexposure")
+    
+    out <- d %>% 
+      group_by(date) %>%
+      mutate(to = cumsum(netexposure), from = c(0, to[-n()])) %>%
+      ggvis(x=~date, fill=~groups) %>% 
+      group_by(groups) %>% 
+      layer_ribbons(y = ~from, y2 = ~to) %>%
+      set_options(width = 1350, height = 900) %>%
+      add_axis("y", format = ".2%", title = "") %>%
+      add_axis("x", format = "%m/%d/%Y",  title = "", 
+               properties = axis_props(labels = list(angle = -45, align = "right"))) %>%
+      add_tooltip(getTooltip, "hover")
+  }
+  else
+  {
+    d <- d[0,]
+    
+    out <- ggvis(d, x = ~sectorname, y = ~r) %>% 
+      layer_ribbons() %>%
+      set_options(width = 1350, height = 900)
+  }
   
   out
 }
@@ -401,4 +430,11 @@ GetFirstDate <- function(yr, mon){
   firstDateInMonth <- paste(yr, "-", mon, "-01", sep="")
   
   return(firstDateInMonth)
+}
+
+getTooltip <- function(dat){
+  
+  paste(paste("Date:", as.Date(dat$date / 86400000, origin='1970-01-01')),
+        paste("Exposure:", dat$to),
+        sep = "<br />")
 }
