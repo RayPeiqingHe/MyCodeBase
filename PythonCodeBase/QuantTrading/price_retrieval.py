@@ -104,7 +104,7 @@ def get_corporate_action_from_yahoo(
             p = y.strip().split(',')
 
             corporate_actions.append(
-               (p[0], datetime.datetime.strptime(p[1].strip(), '%Y%M%d'), Decimal(p[2].split(':')[0])
+               (p[0], datetime.datetime.strptime(p[1].strip(), '%Y%m%d'), Decimal(p[2].split(':')[0])
                if p[0] == 'SPLIT' else Decimal(p[2]), Decimal(p[2].split(':')[1])
                if p[0] == 'SPLIT' else 0))
     except Exception as e:
@@ -140,6 +140,8 @@ def insert_daily_data_into_db(
     final_str = "INSERT INTO daily_price (%s) VALUES (%s)" % \
         (column_str, insert_str)
 
+    final_str = "EXEC dbo.sp_insert_daily_price %s" % insert_str
+
     con = mdb.connect(
         server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
         #, login_timeout=0
@@ -152,7 +154,7 @@ def insert_daily_data_into_db(
 
 
 def insert_corporate_action_data_into_db(
-        data_vendor_id, symbol_id, corporate_action_data
+        data_vendor_id, symbol_id, corporate_action_data, last_data_date
     ):
     """
     Takes a list of tuples of daily data and adds it to the
@@ -168,8 +170,11 @@ def insert_corporate_action_data_into_db(
     corporate_action_data = [
         (data_vendor_id, symbol_id, d[1], now, now,
         d[0], d[2], d[3])
-        for d in corporate_action_data
+        for d in corporate_action_data if d[1] > last_data_date
     ]
+
+    if len(corporate_action_data) == 0:
+        return
 
     # Create the insert strings
     column_str = """data_vendor_id, symbol_id, corporate_action_date, created_date,
@@ -246,7 +251,8 @@ if __name__ == "__main__":
                     yf_data = get_corporate_action_from_yahoo(t[1],
                            start_date = datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
 
-                    insert_corporate_action_data_into_db('1', t[0], yf_data)
+                    insert_corporate_action_data_into_db('1', t[0], yf_data,
+                                                         datetime.datetime.strptime(t[2], '%Y-%m-%d'))
 
                 success = True
             except mdb.InterfaceError as e:
