@@ -151,9 +151,9 @@ ui2 <- shinyUI(basicPage(
             
             ,"Exposure" %>% tabPanel
             (
-            #chartOutput("f4", "nvd3")
             GroupBy("groupby2")
-            ,ggvisOutput("f4")
+            ,chartOutput("f4", "nvd3")
+            #,ggvisOutput("f4")
             )
           )
       )
