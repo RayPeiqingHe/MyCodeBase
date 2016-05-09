@@ -132,6 +132,8 @@ F1 <- function(d, p) {
   
   d[d$date == d[1,]$date,]$pnl_percent <- 0
   
+  d[d$date == d[1,]$date,]$positionallocation <- 1
+  
   d %<>%
     subset(sectorname %in% p) %>%
     DailyReturns(cum=T, fun=sum) %T>%
@@ -266,13 +268,13 @@ F3 <- function(d, p, groupby) {
   
   d %<>%
     subset(sectorname %in% p) %>%
-    {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
+    {aggregate(.[,"prc_change", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
                function(x)sum(na.exclude(x)))} %T>%
     {.$sectorname %<>% factor} %T>%
     {.$p <- .$sectorname %>% as.numeric} %T>%
-    {.$r %<>% {round(100 * ., 2)}}
+    {.$prc_change %<>% {round(100 * ., 2)}}
   
-  plot <- nPlot(r~p,
+  plot <- nPlot(prc_change~p,
     data  = d,
     type  = "scatterChart",
     group = groupby
@@ -290,7 +292,7 @@ F3 <- function(d, p, groupby) {
     tooltips = TRUE,
     tooltipContent =
       "#! function(key, x, y, e){
-        return '<h3>' + e.point.ticker + '</h3> <br><h4> Current position: ' + e.point.r + '</h4>'
+        return '<h3>' + e.point.ticker + '</h3> <br><h4> Current position: ' + e.point.prc_change + '</h4>'
       } !#"
   )
   
@@ -309,33 +311,50 @@ F3_2 <- function(d, p, groupby) {
   
     d %<>%
       subset(sectorname %in% p) %>%
-      {aggregate(.[,"r", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
+      {aggregate(.[,"prc_change", drop=F], list(sectorname=.$sectorname, industry = .$industry, ticker=.$instrument), 
                  function(x)sum(na.exclude(x)))} %T>%
                  {.$sectorname %<>% ordered(., levels = p)} %T>%
-                 {.$r %<>% {round(100 * ., 2)}}
+                 {.$prc_change %<>% {round(100 * ., 2)}}
     d$key = paste(d$sectorname, d$industry, ":", d$ticker, sep='') 
   
-  d$zero = 0
+    d$zero = 0
+    
+    d$groups = d[, groupby]
+    
+    # Add error bar for mean
+    agg <- aggregate(d[,"prc_change", drop=F], list(groups=d$groups), FUN = mean)
+    
+    colnames(agg) = c("groups", "mean_prc_change")
   
-  d$groups = d[, groupby]
-  
-  plot <- ggvis(d, x = ~sectorname, y = ~r, key := ~key, fill = ~groups) %>% 
-    layer_points() %>%
-    set_options(width = 1350, height = 900) %>%
-    add_axis("y", format = ".2f", title = "") %>%
-    add_axis("x", title = "", properties = axis_props(
-      axis = list(stroke = "black", strokeWidth = 3))) %>%
-    layer_paths(x = ~sectorname, y = ~zero, stroke:="black",  strokeWidth := 3) %>%
-    layer_points(size := 200, opacity := 0.4 )%>%
-    add_tooltip(function(data){
-      paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$r))
-    }, "hover") 
+    d <- merge(d, agg, by="groups", all=TRUE)
+    
+    # Add error bar for median
+    agg <- aggregate(d[,"prc_change", drop=F], list(groups=d$groups), FUN = median)
+    
+    colnames(agg) = c("groups", "median_prc_change")
+    
+    d <- merge(d, agg, by="groups", all=TRUE)
+    
+    plot <- ggvis(d, x = ~groups, y = ~prc_change, key := ~key, fill = ~groups) %>% 
+      layer_points() %>%
+      set_options(width = 1500, height = 900) %>%
+      add_axis("y", format = ".2f", title = "") %>%
+      add_axis("x", title = "", properties = axis_props(
+        axis = list(stroke = "black", strokeWidth = 1)
+        ,labels = list(stroke = "black", strokeWidth = 0.5))) %>%
+      layer_paths(x = ~groups, y = ~zero, stroke:="black",  strokeWidth := 3) %>%
+      layer_text(x = ~groups, y = ~mean_prc_change, text:="-------",
+                 fontSize := 30, fill:="red", baseline:="middle", align:="center") %>%
+      layer_text(x = ~groups, y = ~median_prc_change, text:="-------",
+                 fontSize := 30, fill:="blue", baseline:="middle", align:="center") %>%      
+      layer_points(size := 200, opacity := 0.4 )%>%
+      add_tooltip(getTooltip2, "hover") 
   }
   else
   {
     d <- d[0,]
     
-    plot <- ggvis(d, x = ~sectorname, y = ~r) %>% 
+    plot <- ggvis(d, x = ~sectorname, y = ~prc_change) %>% 
       layer_points() %>%
       set_options(width = 1350, height = 900)
   }
@@ -343,18 +362,58 @@ F3_2 <- function(d, p, groupby) {
   plot
 }
 
+# Changes byvRay
+# Area chart for Net exposure
+F4 <- function(d, p, groupby) {
+  # Net exposure of the combined portfolio.
+  # `d` data.
+  
+  #d <- d[d$date != d[1,]$date,]
+  
+  d[d$date == d[1,]$date,]$pnl_percent <- 0
+  
+  d[d$date == d[1,]$date,]$positionallocation <- 1
+  
+  d <- subset(d, sectorname %in% p)
+  
+  d$groups <- d[, groupby]
+  
+  d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, 
+                 by=list(date=d$date, groups=d$groups)
+                 , FUN=sum, na.rm=T)
+  
+  colnames(d) <- c("date", "groups", "netexposure")
+  
+  out <- nPlot(netexposure ~ date,
+               data  = d,
+               #type  = "lineChart",
+               type = 'stackedAreaChart', id = 'chart', group = "groups",
+               reduceXTicks = FALSE
+  ) %T>%
+    
+    .$yAxis(tickFormat=percent_format2) %T>%
+    .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
+    
+    .$chart(margin = list(bottom=100)) %T>%
+    .$set(width = 1350, height = 900)
+  
+  out
+}
+
 # Changes by Ray
 # Area chart for Net exposure
-F4 <- function(d, p, groupby) 
+F4_2 <- function(d, p, groupby) 
 {
   # Net exposure of the combined portfolio.
   # `d` data.
   
   if (nrow(d) > 0 && length(p) > 0)
   {
-    d %<>% subset(sectorname %in% p)
+    #d <- d[d$date != d[1,]$date,]
     
-    d <- d[d$date != d[1,]$date,]
+    d[d$date == d[1,]$date,]$pnl_percent <- 0
+    
+    d[d$date == d[1,]$date,]$positionallocation <- 1
     
     d <- subset(d, sectorname %in% p)
     
@@ -377,8 +436,9 @@ F4 <- function(d, p, groupby)
       set_options(width = 1350, height = 900) %>%
       add_axis("y", format = ".2%", title = "") %>%
       add_axis("x", format = "%m/%d/%Y",  title = "", 
-               properties = axis_props(labels = list(angle = -45, align = "right"))) %>%
+               properties = axis_props(labels = list(angle = -45, align = "right")))  %>%
       add_tooltip(getTooltip, "hover")
+      
   }
   else
   {
@@ -434,7 +494,15 @@ GetFirstDate <- function(yr, mon){
 
 getTooltip <- function(dat){
   
-  paste(paste("Date:", as.Date(dat$date / 86400000, origin='1970-01-01')),
-        paste("Exposure:", dat$to),
+  date <- dat$date
+  from <- dat$from
+  to <- dat$to
+  
+  paste(paste("Date:", as.Date(date / 86400000, origin='1970-01-01')),
+        paste("Exposure:", (to - from)),
         sep = "<br />")
+}
+
+getTooltip2 <- function(data){
+  paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$prc_change), "%")
 }
