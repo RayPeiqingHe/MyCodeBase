@@ -22,7 +22,10 @@ library(magrittr)
 library(ggplot2)
 library(openxlsx)
 library(ggvis)
+library(dygraphs)
+library(htmlwidgets)
 library(dplyr, warn.conflicts = FALSE)
+library(xts)
 
 
 # Settings & Data
@@ -78,6 +81,8 @@ if(!exists("d"))
   assign("d", DataGet())
   
   d[is.na(d$industry),]$industry <- "NA"
+  
+  d[d$portgroup == "INDEX",]["positionallocation"] = 1
 }
 
 # Changes by Ray
@@ -368,8 +373,6 @@ F4 <- function(d, p, groupby) {
   # Net exposure of the combined portfolio.
   # `d` data.
   
-  #d <- d[d$date != d[1,]$date,]
-  
   d[d$date == d[1,]$date,]$pnl_percent <- 0
   
   d[d$date == d[1,]$date,]$positionallocation <- 1
@@ -409,8 +412,6 @@ F4_2 <- function(d, p, groupby)
   
   if (nrow(d) > 0 && length(p) > 0)
   {
-    #d <- d[d$date != d[1,]$date,]
-    
     d[d$date == d[1,]$date,]$pnl_percent <- 0
     
     d[d$date == d[1,]$date,]$positionallocation <- 1
@@ -435,7 +436,8 @@ F4_2 <- function(d, p, groupby)
       layer_ribbons(y = ~from, y2 = ~to) %>%
       set_options(width = 1350, height = 900) %>%
       add_axis("y", format = ".2%", title = "") %>%
-      add_axis("x", format = "%m/%d/%Y",  title = "", 
+      add_axis("x", format = "%m/%d/%Y",  
+               title = "", 
                properties = axis_props(labels = list(angle = -45, align = "right")))  %>%
       add_tooltip(getTooltip, "hover")
       
@@ -450,6 +452,38 @@ F4_2 <- function(d, p, groupby)
   }
   
   out
+}
+
+F4_3 <- function(d, p, groupby) 
+{
+  d[d$date == d[1,]$date,]$pnl_percent <- 0
+  
+  d[d$date == d[1,]$date,]$positionallocation <- 1
+  
+  d <- subset(d, sectorname %in% p)
+  
+  d$groups <- d[, groupby]
+  
+  d <- aggregate((d$longmarketvalue + d$shortmarketvalue) / d$netassets, 
+                 by=list(date=d$date, groups=d$groups)
+                 , FUN=sum, na.rm=T)
+  
+  colnames(d) <- c("date", "groups", "netexposure")
+  
+  d <- split(d, df2$groups, drop = TRUE)
+  
+  d <- lapply(d, reg)
+  
+  d <- Reduce(merge.all, d)
+  
+  data_cols <- colnames(d)[colnames(d) != 'date']
+  
+  ts <- xts(d[data_cols], output$date)
+  
+  dygraph(ts) %>%
+    dyOptions(stackedGraph = TRUE) %>%
+    dyAxis("x",valueFormatter=JS(getMonthDay), axisLabelFormatter=JS(getMonthDay)) %>%
+    dyRangeSelector(height = 20)
 }
 
 # Changes by Ray
@@ -494,15 +528,30 @@ GetFirstDate <- function(yr, mon){
 
 getTooltip <- function(dat){
   
-  date <- dat$date
+  #date <- dat$date
   from <- dat$from
   to <- dat$to
-  
-  paste(paste("Date:", as.Date(date / 86400000, origin='1970-01-01')),
+
+  paste(paste("Date:", as.Date(dat$date / 86400000, origin='1970-01-01')),
         paste("Exposure:", (to - from)),
         sep = "<br />")
 }
 
 getTooltip2 <- function(data){
   paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$prc_change), "%")
+}
+
+
+merge.all <- function(x, y) {
+  merge(x, y, all=TRUE, by="date")
+}
+
+
+reg <- function(x)
+{
+  t <- x[, c("date", "netexposure")]
+  
+  colnames(t) <- c("date", as.character(x[1, "groups"]))
+  
+  t
 }
