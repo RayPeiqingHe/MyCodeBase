@@ -154,7 +154,7 @@ ui2 <- shinyUI(basicPage(
             GroupBy("groupby2")
             #,chartOutput("f4", "nvd3")
             #,ggvisOutput("f4")
-            ,dygraphOutput("f4")
+            ,dygraphOutput("f4", width = "1300px", height = "800px")
             )
           )
       )

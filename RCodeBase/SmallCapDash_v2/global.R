@@ -342,7 +342,7 @@ F3_2 <- function(d, p, groupby) {
     
     plot <- ggvis(d, x = ~groups, y = ~prc_change, key := ~key, fill = ~groups) %>% 
       layer_points() %>%
-      set_options(width = 1500, height = 900) %>%
+      set_options(width = 1700, height = 900) %>%
       add_axis("y", format = ".2f", title = "") %>%
       add_axis("x", title = "", properties = axis_props(
         axis = list(stroke = "black", strokeWidth = 1)
@@ -361,7 +361,7 @@ F3_2 <- function(d, p, groupby) {
     
     plot <- ggvis(d, x = ~sectorname, y = ~prc_change) %>% 
       layer_points() %>%
-      set_options(width = 1350, height = 900)
+      set_options(width = 1500, height = 900)
   }
   
   plot
@@ -470,7 +470,7 @@ F4_3 <- function(d, p, groupby)
   
   colnames(d) <- c("date", "groups", "netexposure")
   
-  d <- split(d, df2$groups, drop = TRUE)
+  d <- split(d, d$groups, drop = TRUE)
   
   d <- lapply(d, reg)
   
@@ -478,12 +478,20 @@ F4_3 <- function(d, p, groupby)
   
   data_cols <- colnames(d)[colnames(d) != 'date']
   
-  ts <- xts(d[data_cols], output$date)
+  ts <- xts(d[data_cols], d$date)
   
   dygraph(ts) %>%
     dyOptions(stackedGraph = TRUE) %>%
-    dyAxis("x",valueFormatter=JS(getMonthDay), axisLabelFormatter=JS(getMonthDay)) %>%
-    dyRangeSelector(height = 20)
+    dyAxis("x",valueFormatter=JS(getFullDay), axisLabelFormatter=JS(getFullDay)) %>%
+    dyAxis(
+      "y",
+      label = "",
+      independentTicks = TRUE,
+      valueFormatter = 'function(d){return (d*100).toFixed(2) + "%"}',
+      axisLabelFormatter = 'function(d){return (d*100).toFixed(2) + "%"}'
+    ) %>%
+    dyRangeSelector(height = 20) %>%
+    dyLegend(width = 600)
 }
 
 # Changes by Ray
@@ -541,7 +549,6 @@ getTooltip2 <- function(data){
   paste0(substring(data$key, regexpr(":",data$key)[1] + 1), "<br>", as.character(data$prc_change), "%")
 }
 
-
 merge.all <- function(x, y) {
   merge(x, y, all=TRUE, by="date")
 }
@@ -555,3 +562,7 @@ reg <- function(x)
   
   t
 }
+
+getFullDay <- 'function(d) {
+date = new Date(d);
+return (date.getMonth()+1) + "/" + date.getDate() + "/" + date.getFullYear(); }'
