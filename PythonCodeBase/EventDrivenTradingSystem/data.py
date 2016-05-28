@@ -267,14 +267,14 @@ class SecurityMasterDataHandler(DataHandler):
         comb_index = None
         for s in self.symbol_list:
             # Load the CSV file with no header information, indexed on date
-            self.symbol_data[s] = pd.io.parsers.read_csv(
-                os.path.join(self.csv_dir, '%s.csv' % s),
-                header=0, index_col=0, parse_dates=True,
-                names=[
-                'datetime', 'open', 'high',
-                'low', 'close', 'volume', 'adj_close'
-                ]
-                ).sort()
+            cnxn = mdb.connect(
+                server=self.db_host, user=self.db_user,
+                password=self.db_pass, database=self.db_name, autocommit=True)
+
+            sql_query = "SELECT * from dbo.ufn_historical_price('%s')" % s
+
+            with cnxn:
+                df = pd.read_sql(sql=sql_query, con=cnxn, index_col='datetime', parse_dates=True)
 
         # Combine the index to pad forward values
         if comb_index is None:
