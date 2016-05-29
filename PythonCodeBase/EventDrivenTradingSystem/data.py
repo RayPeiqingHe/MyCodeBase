@@ -230,14 +230,19 @@ class SecurityMasterDataHandler(DataHandler):
 
         # Obtain a database connection to the MySQL instance
         # Connect to the MySQL instance
+        import os
+        curr_path = os.path.dirname(os.path.abspath(__file__))
+        configFile = os.path.join(curr_path, 'config.ini')
+
         parser = SafeConfigParser()
-        parser.read('config.ini')
+        parser.read(configFile)
 
         # Connect to the MySQL instance
         self.db_host = parser.get('log_in', 'host')
         self.db_name = parser.get('log_in', 'db')
         self.db_user = parser.get('log_in', 'username')
         self.db_pass = parser.get('log_in', 'password')
+        self.db_query = parser.get('log_in', 'security_master_query')
 
         self.symbol_list = symbol_list
         self.symbol_data = {}
@@ -260,18 +265,21 @@ class SecurityMasterDataHandler(DataHandler):
                 server=self.db_host, user=self.db_user,
                 password=self.db_pass, database=self.db_name, autocommit=True)
 
-            sql_query = "SELECT * from dbo.ufn_historical_price('%s')" % s
+            sql_query = self.db_query % s
 
             with cnxn:
                 df = pd.read_sql(sql=sql_query, con=cnxn, index_col='datetime', parse_dates=True)
 
-        # Combine the index to pad forward values
-        if comb_index is None:
-            comb_index = self.symbol_data[s].index
-        else:
-            comb_index.union(self.symbol_data[s].index)
-        # Set the latest symbol_data to None
-        self.latest_symbol_data[s] = []
+                self.symbol_data[s] = df
+
+            # Combine the index to pad forward values
+            if comb_index is None:
+                comb_index = self.symbol_data[s].index
+            else:
+                comb_index.union(self.symbol_data[s].index)
+            # Set the latest symbol_data to None
+            self.latest_symbol_data[s] = []
+
         # Reindex the dataframes
         for s in self.symbol_list:
             self.symbol_data[s] = self.symbol_data[s].\

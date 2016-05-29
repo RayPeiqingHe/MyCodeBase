@@ -6,16 +6,30 @@
 from __future__ import print_function
 
 from abc import ABCMeta, abstractmethod
-import datetime
+
 try:
     import Queue as queue
 except ImportError:
     import queue
 
-import numpy as np
-import pandas as pd
 
-from event import SignalEvent
+class StrategyMetaClass(ABCMeta):
+    """
+    Custom meta class to keep track of all strategies
+
+    """
+
+    strategy_id_map = {}
+    strategy_cnt = 0
+
+    def __init__(cls, name, bases, attrs):
+        if "__init__" in cls.__dict__:
+
+            cls.strategy_cnt += 1
+
+            cls.strategy_id_map[str(cls)] = cls.strategy_cnt
+
+        super(StrategyMetaClass, cls).__init__(name, bases, attrs)
 
 
 class Strategy(object):
@@ -35,11 +49,18 @@ class Strategy(object):
     strategy and machine-learning forecasting strategy
     """
 
-    __metaclass__ = ABCMeta
+    __metaclass__ = StrategyMetaClass
 
     @abstractmethod
-    def calculate_signals(self):
+    def calculate_signals(self, event):
         """
         Provides the mechanisms to calculate the list of signals.
         """
         raise NotImplementedError("Should implement calculate_signals()")
+
+    @property
+    def strategy_id(self):
+
+        cls = type(self)
+
+        return cls.strategy_id_map[str(cls)]
