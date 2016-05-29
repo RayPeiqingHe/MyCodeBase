@@ -47,10 +47,15 @@ class Portfolio(object):
         self.start_date = start_date
         self.initial_capital = initial_capital
 
+        # It is a list of dictionary
         self.all_positions = self.construct_all_positions()
-        self.current_positions = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
 
+        # Keep track of the most recent position
+        self.current_positions = dict([(s, 0) for s in self.symbol_list] )
+
+        # It is a list of dictionary
         self.all_holdings = self.construct_all_holdings()
+
         self.current_holdings = self.construct_current_holdings()
 
     def construct_all_positions(self):
@@ -58,8 +63,12 @@ class Portfolio(object):
         Constructs the positions list using the start_date
         to determine when the time index will begin.
         """
-        d = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+        #d = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+        d = dict([(s, 0) for s in self.symbol_list])
         d['datetime'] = self.start_date
+
+        # Notice that it returns a list of dictionary
+        # We will keep appending new dictionary as new data comes in
         return [d]
 
     def construct_all_holdings(self):
@@ -67,11 +76,14 @@ class Portfolio(object):
         Constructs the holdings list using the start_date
         to determine when the time index will begin.
         """
-        d = dict( (k,v) for k, v in [(s, 0.0) for s in self.symbol_list] )
+        d = dict([(s, 0.0) for s in self.symbol_list] )
         d['datetime'] = self.start_date
         d['cash'] = self.initial_capital
         d['commission'] = 0.0
         d['total'] = self.initial_capital
+
+        # Notice that it returns a list of dictionary
+        # We will keep appending new dictionary as new data comes in
         return [d]
 
     def construct_current_holdings(self):
@@ -79,10 +91,12 @@ class Portfolio(object):
         This constructs the dictionary which will hold the instantaneous
         value of the portfolio across all symbols.
         """
-        d = dict( (k,v) for k, v in [(s, 0.0) for s in self.symbol_list] )
+        d = dict( [(s, 0.0) for s in self.symbol_list] )
         d['cash'] = self.initial_capital
         d['commission'] = 0.0
         d['total'] = self.initial_capital
+
+        # It is a single dictionary as it only stores the most recent data
         return d
 
     def update_timeindex(self, event):
@@ -100,6 +114,9 @@ class Portfolio(object):
         dp = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
         dp['datetime'] = latest_datetime
 
+        # Notice that we simply copy the current position over
+        # regardless if it has changes. We do this to keep
+        # in sych with the holding
         for s in self.symbol_list:
             dp[s] = self.current_positions[s]
 
@@ -132,6 +149,9 @@ class Portfolio(object):
         """
         Takes a Fill object and updates the position matrix to
         reflect the new position.
+
+        We only update the current positionn here, which will be
+        copied over in the update_timeindex method
 
         Parameters:
         fill - The Fill object to update the positions with.

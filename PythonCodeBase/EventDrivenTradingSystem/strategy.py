@@ -30,6 +30,9 @@ class Strategy(object):
     This is designed to work both with historic and live data as
     the Strategy object is agnostic to where the data came from,
     since it obtains the bar tuples from a queue object.
+
+    This based class os to be inherited by the subsequent mean-revert
+    strategy and machine-learning forecasting strategy
     """
 
     __metaclass__ = ABCMeta

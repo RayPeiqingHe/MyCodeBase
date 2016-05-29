@@ -3,7 +3,6 @@
 # data.py
 from __future__ import print_function
 from abc import ABCMeta, abstractmethod
-import datetime
 import os, os.path
 import numpy as np
 import pandas as pd
@@ -32,18 +31,24 @@ class DataHandler(object):
         for b in self.symbol_data[symbol]:
             yield b
 
+    def _get_latest_symbol_data(self, symbol):
+        """
+        Returns the last bar from the latest_symbol list.
+        """
+        try:
+            return self.latest_symbol_data[symbol]
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+
     @abstractmethod
     def get_latest_bar(self, symbol):
         """
         Returns the last bar from the latest_symbol list.
         """
-        try:
-            bars_list = self.latest_symbol_data[symbol]
-        except KeyError:
-            print("That symbol is not available in the historical data set.")
-            raise
-        else:
-           return bars_list[-1]
+        bars_list = self._get_latest_symbol_data(symbol)
+
+        return bars_list[-1]
 
     @abstractmethod
     def get_latest_bars(self, symbol, N=1):
@@ -51,26 +56,18 @@ class DataHandler(object):
         Returns the last N bars from the latest_symbol list,
         or N-k if less available.
         """
-        try:
-            bars_list = self.latest_symbol_data[symbol]
-        except KeyError:
-            print("That symbol is not available in the historical data set.")
-            raise
-        else:
-            return bars_list[-N:]
+        bars_list = self._get_latest_symbol_data(symbol)
+
+        return bars_list[-N:]
 
     @abstractmethod
     def get_latest_bar_datetime(self, symbol):
         """
         Returns a Python datetime object for the last bar.
         """
-        try:
-            bars_list = self.latest_symbol_data[symbol]
-        except KeyError:
-            print("That symbol is not available in the historical data set.")
-            raise
-        else:
-            return bars_list[-1][0]
+        bars_list = self._get_latest_symbol_data(symbol)
+
+        return bars_list[-1][0]
 
     @abstractmethod
     def get_latest_bar_value(self, symbol, val_type):
@@ -78,13 +75,9 @@ class DataHandler(object):
         Returns one of the Open, High, Low, Close, Volume or OI
         values from the pandas Bar series object.
         """
-        try:
-            bars_list = self.latest_symbol_data[symbol]
-        except KeyError:
-            print("That symbol is not available in the historical data set.")
-            raise
-        else:
-            return getattr(bars_list[-1][1], val_type)
+        bars_list = self._get_latest_symbol_data(symbol)
+
+        return getattr(bars_list[-1][1], val_type)
 
     @abstractmethod
     def get_latest_bars_values(self, symbol, val_type, N=1):
@@ -92,13 +85,9 @@ class DataHandler(object):
         Returns the last N bar values from the
         latest_symbol list, or N-k if less available.
         """
-        try:
-            bars_list = self.get_latest_bars(symbol, N)
-        except KeyError:
-            print("That symbol is not available in the historical data set.")
-            raise
-        else:
-            return np.array([getattr(b[1], val_type) for b in bars_list])
+        bars_list = self._get_latest_symbol_data(symbol)
+
+        return np.array([getattr(b[1], val_type) for b in bars_list])
 
     @abstractmethod
     def update_bars(self):
