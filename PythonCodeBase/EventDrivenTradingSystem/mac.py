@@ -13,6 +13,7 @@ from strategy import Strategy
 from event import SignalEvent
 from backtest import Backtest
 from data import HistoricCSVDataHandler
+from data import SecurityMasterDataHandler
 from execution import SimulatedExecutionHandler
 from portfolio import Portfolio
 
@@ -99,11 +100,14 @@ if __name__ == "__main__":
     symbol_list = ['AAPL']
     initial_capital = 100000.0
     heartbeat = 0.0
-    start_date = datetime.datetime(1990, 1, 1, 0, 0, 0)
+
+    data_handler = SecurityMasterDataHandler(symbol_list)
+
+    start_date = data_handler.start_dt
 
     backtest = Backtest(
-        csv_dir, symbol_list, initial_capital, heartbeat,
-        start_date, HistoricCSVDataHandler, SimulatedExecutionHandler,
+        symbol_list, initial_capital, heartbeat,
+        start_date, data_handler, SimulatedExecutionHandler,
         Portfolio, MovingAverageCrossStrategy
     )
     backtest.simulate_trading()

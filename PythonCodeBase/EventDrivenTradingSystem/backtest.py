@@ -1,12 +1,15 @@
 from __future__ import print_function
 
-import datetime
 import pprint
 try:
     import Queue as queue
 except ImportError:
     import queue
 import time
+
+import matplotlib.pyplot as plt
+
+import matplotlib.dates as mdates
 
 
 class Backtest(object):
@@ -16,7 +19,7 @@ class Backtest(object):
     """
 
     def __init__(
-        self, csv_dir, symbol_list, initial_capital,
+        self, symbol_list, initial_capital,
         heartbeat, start_date, data_handler, 
         execution_handler, portfolio, strategy
     ):
@@ -34,12 +37,14 @@ class Backtest(object):
         portfolio - (Class) Keeps track of portfolio current and prior positions.
         strategy - (Class) Generates signals based on market data.
         """
-        self.csv_dir = csv_dir
+        #self.csv_dir = csv_dir
         self.symbol_list = symbol_list
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
 
+        # Instead of create the data handler object in the class
+        # pass it as a parameter
         self.data_handler = data_handler
 
         # cls means class. Remember class is an object
@@ -50,6 +55,8 @@ class Backtest(object):
         self.strategy_cls = strategy
 
         # Create Queue to store the events
+        # The reason that we are using a Queue is to
+        # make sure event is extracted FIFO
         self.events = queue.Queue()
         
         self.signals = 0
@@ -80,10 +87,10 @@ class Backtest(object):
         i = 0
         while True:
             i += 1
-            print(i)
+            #print(i)
             # Update the market bars
             if self.data_handler.continue_backtest == True:
-                self.data_handler.update_bars()
+                self.data_handler.update_bars(self.events)
             else:
                 break
 
@@ -92,6 +99,8 @@ class Backtest(object):
                 try:
                     event = self.events.get(False)
                 except queue.Empty:
+                    # This is actually the true exit point, when
+                    # the event queue becomes empty
                     break
                 else:
                     if event is not None:
@@ -129,6 +138,32 @@ class Backtest(object):
         print("Signals: %s" % self.signals)
         print("Orders: %s" % self.orders)
         print("Fills: %s" % self.fills)
+
+        self._output_plot(self.portfolio.equity_curve)
+
+    def _output_plot(self, df_performance):
+        """
+        Plotting the Equity curve, return, and drawdown
+
+        """
+
+        my_styles = ['b', 'k', 'r']
+
+        cols = ['equity_curve', 'returns', 'drawdown']
+
+        label = ['Portfolio Value %', 'Period Return. %', 'drawdown. %']
+
+        axes = df_performance[cols].plot(subplots=True,
+            figsize=(8, 6), grid=True, style=my_styles, sharex=False)
+
+        for ax in axes:
+            ax.set_ylabel(label[0])
+
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+            ax.xaxis.set_major_locator(mdates.YearLocator())
+
+        plt.show()
 
     def simulate_trading(self):
         """

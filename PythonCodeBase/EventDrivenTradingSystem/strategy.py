@@ -12,6 +12,13 @@ try:
 except ImportError:
     import queue
 
+import datetime
+from event import SignalEvent
+from data import SecurityMasterDataHandler
+from backtest import Backtest
+from execution import SimulatedExecutionHandler
+from portfolio import Portfolio
+
 
 class StrategyMetaClass(ABCMeta):
     """
@@ -64,3 +71,63 @@ class Strategy(object):
         cls = type(self)
 
         return cls.strategy_id_map[str(cls)]
+
+
+class BuyAndHoldStrategy(Strategy):
+    """
+    The simply buy and hold strategy. Used as a bench market to
+    Compare the performance of other strategies
+
+    """
+
+    def __init__(self, bars, events):
+        """
+        Initialises the Moving Average Cross Strategy.
+
+        Parameters:
+        bars - The DataHandler object that provides bar information
+        events - The Event Queue object.
+        short_window - The short moving average lookback.
+        long_window - The long moving average lookback.
+        """
+        self.bars = bars
+        self.symbol_list = self.bars.symbol_list
+        self.events = events
+
+        self.symbol_list_bought = dict([(s, False) for s in self.symbol_list])
+
+    def calculate_signals(self, event):
+        """
+        Dummy buy and hold strategy
+
+        :param event:
+        :return:
+        """
+
+        if event.type == 'MARKET':
+            for s in self.symbol_list:
+                if not self.symbol_list_bought[s]:
+                    self.symbol_list_bought[s] = True
+
+                    dt = datetime.datetime.utcnow()
+
+                    signal = SignalEvent(self.strategy_id, s, dt, 'LONG', 1.0)
+                    self.events.put(signal)
+
+
+if __name__ == '__main__':
+
+    symbol_list = ['AAPL']
+    initial_capital = 100000.0
+    heartbeat = 0.0
+
+    data_handler = SecurityMasterDataHandler(symbol_list)
+
+    start_date = data_handler.start_dt
+
+    backtest = Backtest(
+        symbol_list, initial_capital, heartbeat,
+        start_date, data_handler, SimulatedExecutionHandler,
+        Portfolio, BuyAndHoldStrategy
+    )
+    backtest.simulate_trading()
