@@ -80,9 +80,10 @@ ui <- basicPage(
       div(style="position: absolute; left: 410px; right: 0; top: 0; height: auto;",
           titlePanel(""),
           mainPanel(tableOutput("t1")
-                    ,fluidRow(column(width = 8, chartOutput("f1", "nvd3")),
-                              column(width = 8, chartOutput("f2", "nvd3")))
-                    
+
+                    ,chartOutput("f2", "nvd3")
+                    ,br()
+                    ,chartOutput("f1", "nvd3")
                     )
         )
   )

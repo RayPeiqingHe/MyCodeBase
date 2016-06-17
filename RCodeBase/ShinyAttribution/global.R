@@ -103,6 +103,8 @@ T1 <- function(d, pd, dependVar, exVars) {
   alpha[, exVars] <- NA
   
   tb <- rbind(tb, vol, sharpe, mdd, retDD, coeff, alpha * 10000)
+  
+  t(tb)
 }
 
 F1 <- function(d, dependVar, exVars) {
@@ -146,7 +148,7 @@ F1 <- function(d, dependVar, exVars) {
     
     .$yAxis(tickFormat=percent_format2, axisLabel=dependVar) %T>%
     .$xAxis(tickFormat=percent_format2, axisLabel=paste("Predicted",dependVar)) %T>%
-    .$set(width=750, height=400) %T>%
+    .$set(width=1125, height=600) %T>%
     .$chart(
       size		= '#! function(d){return d.size} !#'
       ,showControls	= FALSE
@@ -170,13 +172,15 @@ F2 <- function(d, dependVar, exVars, lookback) {
   
   d <- reg[, c("date", "X.Intercept.")]
   
+  # d is the data frame of date and alpha
   colnames(d) <- c("date", "y")
   
-  left <- max(d$y)
+  # left contaisn the upper bound of alpha
+  alphaMax <- max(d$y)
   
   d <- cbind(d, s = "Alpha")
   
-  y_list <- list(Alpha = list(type="bar", yAxis = 1))
+  y_list <- list(Alpha = list(type="bar", yAxis = 2))
   
   for (col in colnames(reg))
   {
@@ -188,11 +192,11 @@ F2 <- function(d, dependVar, exVars, lookback) {
       
       d <- rbind(d, tmp)
       
-      y_list[[col]] <- list(type="line", yAxis = 2)
+      y_list[[col]] <- list(type="line", yAxis = 1)
     }
   }
   
-  right <- max(d[d$s != "Alpha", ]$y)
+  betaMax <- max(d[d$s != "Alpha", ]$y)
   
   out <- nPlot(y ~ date,
                data  = d,
@@ -209,11 +213,17 @@ F2 <- function(d, dependVar, exVars, lookback) {
     tickFormat=yearmonth_format, rotateLabels=-45
   )
   
+  out$set(width=1125, height=600)
+  
+  alphaFormat = "d3.format( '.2%' )"
+  
+  betaFormat = "d3.format( '.2f' )"
+  
   #for multi we need yAxis1 and yAxis2
   #but there is not a method like for yAxis and xAxis
   #so let's do it the hacky way in the template
   out$setTemplate( script = getFormatMultiChartYAxesScript(
-    left * -1, left, right * -1, right, "d3.format( '.2%' )", "d3.format( '.2f' )"
+    betaMax * -1, betaMax, alphaMax * -1, alphaMax, betaFormat, alphaFormat
   ))
   
   out
