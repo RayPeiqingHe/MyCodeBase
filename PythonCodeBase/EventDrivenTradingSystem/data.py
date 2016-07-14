@@ -57,9 +57,13 @@ class DataHandler(object):
         Returns the last N bars from the latest_symbol list,
         or N-k if less available.
         """
-        bars_list = self._get_latest_symbol_data(symbol)
-
-        return bars_list[-N:]
+        try:
+            bars_list = self.latest_symbol_data[symbol]
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+        else:
+            return bars_list[-N:]
 
     @abstractmethod
     def get_latest_bar_datetime(self, symbol):
@@ -85,10 +89,16 @@ class DataHandler(object):
         """
         Returns the last N bar values from the
         latest_symbol list, or N-k if less available.
-        """
-        bars_list = self._get_latest_symbol_data(symbol)
 
-        return np.array([getattr(b[1], val_type) for b in bars_list])
+        val_type: the data field name, for instances, adj_close
+        """
+        try:
+            bars_list = self.get_latest_bars(symbol, N)
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+        else:
+            return np.array([getattr(b[1], val_type) for b in bars_list])
 
     @abstractmethod
     def update_bars(self, events):
@@ -98,12 +108,16 @@ class DataHandler(object):
         """
         for s in self.symbol_list:
             try:
-                bar = next(self._get_new_bar(s))
+                #bar = next(self._get_new_bar(s))
+                bar = next(self.symbol_data[s])
             except StopIteration:
                 self.continue_backtest = False
             else:
                 if bar is not None:
                     self.latest_symbol_data[s].append(bar)
+
+        # Market event is for all symbol. It basically notifies
+        # the system that latest market data is in
         events.put(MarketEvent())
 
 class HistoricCSVDataHandler(DataHandler):
@@ -259,6 +273,7 @@ class SecurityMasterDataHandler(DataHandler):
         taken from Yahoo. Thus its format will be respected.
         """
         comb_index = None
+        self.start_dt = None
         for s in self.symbol_list:
             # Load the CSV file with no header information, indexed on date
             cnxn = mdb.connect(
@@ -280,12 +295,25 @@ class SecurityMasterDataHandler(DataHandler):
             # Set the latest symbol_data to None
             self.latest_symbol_data[s] = []
 
-        self.start_dt = self.symbol_data[self.symbol_list[0]].index[0].to_datetime()
+            # Since each symbols may have a different starting date for data
+            # use the largest one as the global starting date so that
+            # all symbols have data on the starting date
+            if self.start_dt is None:
+                self.start_dt = self.symbol_data[s].index[0].to_datetime()
+            else:
+                tmp = self.symbol_data[s].index[0].to_datetime()
+
+                if tmp > self.start_dt:
+                    self.start_dt = tmp
 
         # Reindex the dataframes
         for s in self.symbol_list:
             self.symbol_data[s] = self.symbol_data[s].\
-            reindex(index=comb_index, method='pad').iterrows()
+            reindex(index=comb_index, method='pad')
+
+            self.symbol_data[s] = self.symbol_data[s].loc[self.symbol_data[s].index >= self.start_dt].iterrows()
+
+        # Now self.symbol_data contains the A generator that iterates over the rows of the frame
 
     def get_latest_bar(self, symbol):
         """

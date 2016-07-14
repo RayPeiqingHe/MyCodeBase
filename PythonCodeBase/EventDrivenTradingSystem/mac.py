@@ -82,13 +82,13 @@ class MovingAverageCrossStrategy(Strategy):
                     sig_dir = ""
 
                     if short_sma > long_sma and self.bought[s] == "OUT":
-                        print("LONG: %s" % bar_date)
+                        print("LONG: {0} {1}".format(bar_date, s))
                         sig_dir = 'LONG'
                         signal = SignalEvent(self.strategy_id, symbol, dt, sig_dir, 1.0)
                         self.events.put(signal)
                         self.bought[s] = 'LONG'
                     elif short_sma < long_sma and self.bought[s] == "LONG":
-                        print("SHORT: %s" % bar_date)
+                        print("SHORT: {0} {1}".format(bar_date, s))
                         sig_dir = 'EXIT'
                         signal = SignalEvent(self.strategy_id, symbol, dt, sig_dir, 1.0)
                         self.events.put(signal)
@@ -97,7 +97,7 @@ class MovingAverageCrossStrategy(Strategy):
 
 if __name__ == "__main__":
     csv_dir = '/path/to/your/csv/file'  # CHANGE THIS!
-    symbol_list = ['AAPL']
+    symbol_list = ['AAPL', 'GOOG']
     initial_capital = 100000.0
     heartbeat = 0.0
 

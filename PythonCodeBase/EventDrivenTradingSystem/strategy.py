@@ -18,6 +18,7 @@ from data import SecurityMasterDataHandler
 from backtest import Backtest
 from execution import SimulatedExecutionHandler
 from portfolio import Portfolio
+from order import *
 
 
 class StrategyMetaClass(ABCMeta):
@@ -105,19 +106,28 @@ class BuyAndHoldStrategy(Strategy):
         """
 
         if event.type == 'MARKET':
+            symbols_to_buy = []
+
             for s in self.symbol_list:
                 if not self.symbol_list_bought[s]:
                     self.symbol_list_bought[s] = True
 
+                    bar_date = self.bars.get_latest_bar_datetime(s)
+
+                    print("LONG: {0} {1}".format(bar_date, s))
+
                     dt = datetime.datetime.utcnow()
 
-                    signal = SignalEvent(self.strategy_id, s, dt, 'LONG', 1.0)
-                    self.events.put(signal)
+                    symbols_to_buy.append(s)
+
+            if len(symbols_to_buy) > 0:
+                signal = SignalEvent(self.strategy_id, symbols_to_buy, dt, 'LONG', 1.0)
+                self.events.put(signal)
 
 
 if __name__ == '__main__':
 
-    symbol_list = ['AAPL']
+    symbol_list = ['AAPL', 'GOOG']
     initial_capital = 100000.0
     heartbeat = 0.0
 
@@ -125,9 +135,13 @@ if __name__ == '__main__':
 
     start_date = data_handler.start_dt
 
+    order_method = NaiveOrder
+
+    order_method = EquityWeightOrder
+
     backtest = Backtest(
         symbol_list, initial_capital, heartbeat,
         start_date, data_handler, SimulatedExecutionHandler,
-        Portfolio, BuyAndHoldStrategy
+        Portfolio, BuyAndHoldStrategy, order_method
     )
     backtest.simulate_trading()

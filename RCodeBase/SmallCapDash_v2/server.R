@@ -89,4 +89,6 @@ shinyServer(function(input, output, session) {
   #output$f4 <- renderChart2({F4(e(), portfoliosExIndices(), groupBy2())})
   #reactive({F4_2(e(), portfoliosExIndices(), groupBy2())}) %>% bind_shiny("f4")
   output$f4 <- renderDygraph({F4_3(e(), portfoliosExIndices(), groupBy2())})
+  
+  output$f5 <- renderChart2({F5(e(), portfolios())})
 })

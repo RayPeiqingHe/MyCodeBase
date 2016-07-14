@@ -21,7 +21,7 @@ class Backtest(object):
     def __init__(
         self, symbol_list, initial_capital,
         heartbeat, start_date, data_handler, 
-        execution_handler, portfolio, strategy
+        execution_handler, portfolio, strategy, order
     ):
         """
         Initialises the backtest.
@@ -54,6 +54,8 @@ class Backtest(object):
         self.portfolio_cls = portfolio
         self.strategy_cls = strategy
 
+        self.order_cls = order
+
         # Create Queue to store the events
         # The reason that we are using a Queue is to
         # make sure event is extracted FIFO
@@ -77,7 +79,7 @@ class Backtest(object):
         #self.data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list)
         self.strategy = self.strategy_cls(self.data_handler, self.events)
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, self.start_date, 
-                                            self.initial_capital)
+                                            self.order_cls(), self.initial_capital)
         self.execution_handler = self.execution_handler_cls(self.events)
 
     def _run_backtest(self):
@@ -95,6 +97,7 @@ class Backtest(object):
                 break
 
             # Handle the events
+            # Notice that the market event is generated outside of this loop
             while True:
                 try:
                     event = self.events.get(False)
@@ -104,10 +107,15 @@ class Backtest(object):
                     break
                 else:
                     if event is not None:
+                        # This if block should be only executed once
                         if event.type == 'MARKET':
                             self.strategy.calculate_signals(event)
+                            # Insert new entry for position and holding
                             self.portfolio.update_timeindex(event)
 
+                        # Each signal event corresponds to one symbol
+                        # All Signal events must be process before moving on
+                        # to the order events
                         elif event.type == 'SIGNAL':
                             self.signals += 1                            
                             self.portfolio.update_signal(event)
@@ -132,7 +140,12 @@ class Backtest(object):
         stats = self.portfolio.output_summary_stats()
         
         print("Creating equity curve...")
+        print(self.portfolio.equity_curve.head(10))
         print(self.portfolio.equity_curve.tail(10))
+
+        print("Print position history")
+        print(self.portfolio.position_history.head(10))
+
         pprint.pprint(stats)
 
         print("Signals: %s" % self.signals)

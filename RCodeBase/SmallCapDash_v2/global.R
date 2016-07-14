@@ -157,7 +157,7 @@ F1 <- function(d, p) {
     
   .$chart(margin = list(bottom=100)) %T>%
   .$set(width=1350, height=900)
-
+  
   out
 }
 
@@ -367,7 +367,7 @@ F3_2 <- function(d, p, groupby) {
   plot
 }
 
-# Changes byvRay
+# Changes by Ray
 # Area chart for Net exposure
 F4 <- function(d, p, groupby) {
   # Net exposure of the combined portfolio.
@@ -493,6 +493,78 @@ F4_3 <- function(d, p, groupby)
     dyRangeSelector(height = 20) %>%
     dyLegend(width = 600)
 }
+
+
+F5 <- function(d, p) {
+  # Cumulative returns per portfolio.
+  # `p` list of portfolios to plot.
+  # `d` data.
+  
+  d %<>% arrange(sectorname, date)
+  
+  d[d$date == d[1,]$date,]$pnl_percent <- 0
+  
+  d[d$date == d[1,]$date,]$positionallocation <- 1
+  
+  d %<>%
+    subset(sectorname %in% p) %>%
+    DailyReturns(cum=T, fun=sum) %T>%
+    {.$r %<>% {round(. * 100, 4)}} %>%
+    {.[, c("date", "sectorname", "r")]}
+  
+  data_cols <- colnames(d)[colnames(d) != 'date']
+  
+  sectornames <- unique(d$sectorname)
+  
+  sdData <- NULL
+  
+  for (s in sectornames)
+  {
+    d2 <- d[d$sectorname == s,]
+    
+    # Convert to time series object
+    ts_ret <- xts(d2[data_cols], d2$date)
+    
+    tmp <- cbind(RollSD(ts_ret), sectorname = s)
+    
+    if (is.null(sdData))
+      sdData <- tmp
+    else
+      sdData <- rbind(sdData, tmp)
+  }
+  
+  out <- nPlot(sd ~ date,
+               data  = sdData,
+               group = "sectorname",
+               type  = "lineChart",
+               reduceXTicks = FALSE
+  ) %T>%
+    
+    .$yAxis(tickFormat=percent_format) %T>%
+    .$xAxis(tickFormat=yearmonth_format, rotateLabels=-45) %T>%
+    
+    .$chart(margin = list(bottom=100)) %T>%
+    .$set(width=1350, height=900)
+  
+  out
+}
+
+
+RollSD <- function(ts_ret)
+{
+  rollingDate <- 20
+  
+  doSD <- function(x) sd(x$r, na.rm = TRUE) * sqrt(252 / rollingDate)
+  
+  std <- na.omit(rollapplyr(ts_ret, rollingDate, doSD, by.column = FALSE))
+  
+  std <- data.frame(date=index(std), coredata(std))
+  
+  colnames(std) <- c('date', 'sd')
+  
+  std
+}
+
 
 # Changes by Ray
 # Update the date range input widget using with the given start and end date

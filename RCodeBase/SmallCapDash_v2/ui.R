@@ -156,6 +156,14 @@ ui2 <- shinyUI(basicPage(
             #,ggvisOutput("f4")
             ,dygraphOutput("f4", width = "1300px", height = "800px")
             )
+            
+            , "Rolling STD" %>% 
+              tabPanel(
+                chartOutput("f5", "nvd3"), 
+                tags$script(HTML("
+                                 var p = document.getElementById('t1')
+                                 $(p).attr('align', 'center');"))
+                )
           )
       )
   )

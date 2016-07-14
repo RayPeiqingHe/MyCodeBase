@@ -32,13 +32,13 @@ class SignalEvent(Event):
     Handles the event of sending a Signal from a Strategy object.
     This is received by a Portfolio object and acted upon.
     """
-    def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
+    def __init__(self, strategy_id, symbols, datetime, signal_type, strength):
         """
         Initialises the SignalEvent.
         Parameters:
         strategy_id - The unique identifier for the strategy that
         generated the signal.
-        symbol - The ticker symbol, e.g. ’GOOG’.
+        symbol - The list of the ticker symbols, e.g. ’GOOG’.
         datetime - The timestamp at which the signal was generated.
         signal_type - ’LONG’ or ’SHORT’.
         strength - An adjustment factor "suggestion" used to scale
@@ -46,7 +46,9 @@ class SignalEvent(Event):
         """
         self.type = 'SIGNAL'
         self.strategy_id = strategy_id
-        self.symbol = symbol
+
+        # Instead of one symbol per signal, use list of symbols per signal
+        self.symbols = symbols
         self.datetime = datetime
         self.signal_type = signal_type
         self.strength = strength
@@ -84,6 +86,23 @@ class OrderEvent(Event):
             "Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" %
             (self.symbol, self.order_type, self.quantity, self.direction)
            )
+
+    def calculate_ib_commission(self):
+        """
+        Calculates the fees of trading based on an Interactive
+        Brokers fee structure for API, in USD.
+        This does not include exchange or ECN fees.
+        Based on "US API Directed Orders":
+        https://www.interactivebrokers.com/en/index.php?
+        f=commission&p=stocks2
+        """
+        full_cost = 1.3
+        if self.quantity <= 500:
+            full_cost = max(1.3, 0.013 * self.quantity)
+        else: # Greater than 500
+            full_cost = max(1.3, 0.008 * self.quantity)
+        return full_cost
+
 
 class FillEvent(Event):
     """

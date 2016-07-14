@@ -12,6 +12,7 @@ import pandas as pd
 
 from event import FillEvent, OrderEvent
 from performance import create_sharpe_ratio, create_drawdowns
+from order import BaseOrder
 
 
 class Portfolio(object):
@@ -29,7 +30,7 @@ class Portfolio(object):
     portfolio total across bars.
     """
 
-    def __init__(self, bars, events, start_date, initial_capital=100000.0):
+    def __init__(self, bars, events, start_date, order_method, initial_capital=100000.0):
         """
         Initialises the portfolio with bars and an event queue.
         Also includes a starting datetime index and initial capital
@@ -46,6 +47,8 @@ class Portfolio(object):
         self.symbol_list = self.bars.symbol_list
         self.start_date = start_date
         self.initial_capital = initial_capital
+
+        self.order_method = order_method
 
         # It is a list of dictionary
         self.all_positions = self.construct_all_positions()
@@ -69,6 +72,7 @@ class Portfolio(object):
 
         # Notice that it returns a list of dictionary
         # We will keep appending new dictionary as new data comes in
+        # It basically contains the position history
         return [d]
 
     def construct_all_holdings(self):
@@ -84,6 +88,7 @@ class Portfolio(object):
 
         # Notice that it returns a list of dictionary
         # We will keep appending new dictionary as new data comes in
+        # It basically contains the holding history
         return [d]
 
     def construct_current_holdings(self):
@@ -111,7 +116,15 @@ class Portfolio(object):
 
         # Update positions
         # ================
-        dp = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+
+        if self.start_date == latest_datetime:
+            dp = self.all_positions[0]
+        else:
+            dp = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+
+            # Append the current positions
+            self.all_positions.append(dp)
+
         dp['datetime'] = latest_datetime
 
         # Notice that we simply copy the current position over
@@ -120,12 +133,16 @@ class Portfolio(object):
         for s in self.symbol_list:
             dp[s] = self.current_positions[s]
 
-        # Append the current positions
-        self.all_positions.append(dp)
-
         # Update holdings
         # ===============
-        dh = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+        if self.start_date == latest_datetime:
+            dh = self.all_holdings[0]
+        else:
+            dh = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+
+            # Append the current holdings
+            self.all_holdings.append(dh)
+
         dh['datetime'] = latest_datetime
         dh['cash'] = self.current_holdings['cash']
         dh['commission'] = self.current_holdings['commission']
@@ -137,9 +154,6 @@ class Portfolio(object):
                 self.bars.get_latest_bar_value(s, "adj_close")
             dh[s] = market_value
             dh['total'] += market_value
-
-        # Append the current holdings
-        self.all_holdings.append(dh)
 
     # ======================
     # FILL/POSITION HANDLING
@@ -154,7 +168,7 @@ class Portfolio(object):
         copied over in the update_timeindex method
 
         Parameters:
-        fill - The Fill object to update the positions with.
+        fill - The Fill event object to update the positions with.
         """
         # Check whether the fill is a buy or sell
         fill_dir = 0
@@ -209,15 +223,28 @@ class Portfolio(object):
         Parameters:
         signal - The tuple containing Signal information.
         """
+        mkt_quantity = 100
+        order_type = 'MKT'
+
+        order = self.generate_order_core(signal, mkt_quantity, order_type)
+
+        return order
+
+    def generate_order_core(self, signal, mkt_quantity, order_type = 'MKT'):
+        """
+        Central logic to generate order for execution
+
+        Parameters:
+        signal - The tuple containing Signal information.
+        """
+
         order = None
 
         symbol = signal.symbol
         direction = signal.signal_type
         strength = signal.strength
 
-        mkt_quantity = 100
         cur_quantity = self.current_positions[symbol]
-        order_type = 'MKT'
 
         if direction == 'LONG' and cur_quantity == 0:
             order = OrderEvent(symbol, order_type, mkt_quantity, 'BUY')
@@ -236,8 +263,11 @@ class Portfolio(object):
         based on the portfolio logic.
         """
         if event.type == 'SIGNAL':
-            order_event = self.generate_naive_order(event)
-            self.events.put(order_event)
+            #order_event = self.generate_naive_order(event)
+
+            #self.events.put(order_event)
+
+            self.order_method.generate_order(event, self.events, self)
 
     # ========================
     # POST-BACKTEST STATISTICS
@@ -253,6 +283,19 @@ class Portfolio(object):
         curve['returns'] = curve['total'].pct_change()
         curve['equity_curve'] = (1.0+curve['returns']).cumprod()
         self.equity_curve = curve
+
+        position_history = pd.DataFrame(self.all_positions)
+        position_history.set_index('datetime', inplace=True)
+        self.position_history = position_history
+
+    def create_position_dataframe(self):
+        """
+        Creates a pandas DataFrame from the all positions
+        list of dictionaries.
+        """
+
+        pos = pd.DataFrame(self.all_positions)
+        self.position_curve = pos
 
     def output_summary_stats(self):
         """
