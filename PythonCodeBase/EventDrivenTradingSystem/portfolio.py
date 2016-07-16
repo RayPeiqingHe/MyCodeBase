@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from event import FillEvent, OrderEvent
-from performance import create_sharpe_ratio, create_drawdowns
+from performance import create_sharpe_ratio, create_drawdowns, create_cagr
 from order import BaseOrder
 
 
@@ -113,6 +113,9 @@ class Portfolio(object):
         Makes use of a MarketEvent from the events queue.
         """
         latest_datetime = self.bars.get_latest_bar_datetime(self.symbol_list[0])
+
+        if latest_datetime.strftime("%Y-%m-%d") == '2016-07-06':
+            pass
 
         # Update positions
         # ================
@@ -278,6 +281,7 @@ class Portfolio(object):
         Creates a pandas DataFrame from the all_holdings
         list of dictionaries.
         """
+
         curve = pd.DataFrame(self.all_holdings)
         curve.set_index('datetime', inplace=True)
         curve['returns'] = curve['total'].pct_change()
@@ -309,8 +313,11 @@ class Portfolio(object):
         drawdown, max_dd, dd_duration = create_drawdowns(pnl)
         self.equity_curve['drawdown'] = drawdown
 
-        stats = [("Total Return", "%0.2f%%" % ((total_return - 1.0) * 100.0)),
-                 ("Sharpe Ratio", "%0.2f" % sharpe_ratio),
+        cagr = create_cagr(total_return, returns)
+
+        stats = [("Total Return", "%0.4f%%" % ((total_return - 1.0) * 100.0)),
+                 ("Sharpe Ratio", "%0.4f" % sharpe_ratio),
+                 ("CAGR", "%0.4f" % cagr),
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),
                  ("Drawdown Duration", "%d" % dd_duration)]
 

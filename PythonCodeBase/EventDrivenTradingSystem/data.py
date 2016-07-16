@@ -118,7 +118,8 @@ class DataHandler(object):
 
         # Market event is for all symbol. It basically notifies
         # the system that latest market data is in
-        events.put(MarketEvent())
+        if self.continue_backtest:
+            events.put(MarketEvent())
 
 class HistoricCSVDataHandler(DataHandler):
     """

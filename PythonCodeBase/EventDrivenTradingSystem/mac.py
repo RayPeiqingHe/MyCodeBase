@@ -5,17 +5,15 @@
 
 from __future__ import print_function
 
-import datetime
-
 import numpy as np
 
 from strategy import Strategy
 from event import SignalEvent
 from backtest import Backtest
-from data import HistoricCSVDataHandler
 from data import SecurityMasterDataHandler
-from execution import SimulatedExecutionHandler
+from execution import *
 from portfolio import Portfolio
+from order import *
 
 
 class MovingAverageCrossStrategy(Strategy):
@@ -84,20 +82,20 @@ class MovingAverageCrossStrategy(Strategy):
                     if short_sma > long_sma and self.bought[s] == "OUT":
                         print("LONG: {0} {1}".format(bar_date, s))
                         sig_dir = 'LONG'
-                        signal = SignalEvent(self.strategy_id, symbol, dt, sig_dir, 1.0)
+                        signal = SignalEvent(self.strategy_id, [symbol], dt, sig_dir, 1.0)
                         self.events.put(signal)
                         self.bought[s] = 'LONG'
                     elif short_sma < long_sma and self.bought[s] == "LONG":
                         print("SHORT: {0} {1}".format(bar_date, s))
                         sig_dir = 'EXIT'
-                        signal = SignalEvent(self.strategy_id, symbol, dt, sig_dir, 1.0)
+                        signal = SignalEvent(self.strategy_id, [symbol], dt, sig_dir, 1.0)
                         self.events.put(signal)
                         self.bought[s] = 'OUT'
 
 
 if __name__ == "__main__":
     csv_dir = '/path/to/your/csv/file'  # CHANGE THIS!
-    symbol_list = ['AAPL', 'GOOG']
+    symbol_list = ['AAPL']
     initial_capital = 100000.0
     heartbeat = 0.0
 
@@ -105,9 +103,11 @@ if __name__ == "__main__":
 
     start_date = data_handler.start_dt
 
+    order_method = EquityWeightOrder
+
     backtest = Backtest(
         symbol_list, initial_capital, heartbeat,
-        start_date, data_handler, SimulatedExecutionHandler,
-        Portfolio, MovingAverageCrossStrategy
+        start_date, data_handler, SimulatedExecutionHandlerWithCommision,
+        Portfolio, MovingAverageCrossStrategy, order_method
     )
     backtest.simulate_trading()

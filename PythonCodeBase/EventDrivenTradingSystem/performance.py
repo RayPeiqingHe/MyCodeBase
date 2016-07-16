@@ -13,8 +13,22 @@ def create_sharpe_ratio(returns, periods=252):
     returns - A pandas Series representing period percentage returns.
     periods - Daily (252), Hourly (252*6.5), Minutely(252*6.5*60) etc.
     """
-    return np.sqrt(periods) * (np.mean(returns)) / np.std(returns)
 
+    #print('averge: {0} : std {1}'.format(np.mean(returns), np.std(returns)))
+
+    return np.sqrt(periods) * np.mean(returns) / np.std(returns)
+
+def create_cagr(tot_return, returns, periods=252):
+    """
+    Computation of CAGR
+
+    :param returns:
+    :param periods:
+    :return:
+    """
+    #print('total return: {0} : number of periods {1}'.format(tot_return, len(returns) - 1))
+
+    return pow(tot_return, 1. / ((len(returns) - 1.) / periods)) - 1
 
 def create_drawdowns(pnl):
     """

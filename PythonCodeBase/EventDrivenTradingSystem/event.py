@@ -60,7 +60,7 @@ class OrderEvent(Event):
     The order contains a symbol (e.g. GOOG), a type (market or limit),
     quantity and a direction.
     """
-    def __init__(self, symbol, order_type, quantity, direction):
+    def __init__(self, symbol, order_type, quantity, direction, max_capital):
         """
         Initialises the order type, setting whether it is
         a Market order (’MKT’) or Limit order (’LMT’), has
@@ -77,6 +77,7 @@ class OrderEvent(Event):
         self.order_type = order_type
         self.quantity = quantity
         self.direction = direction
+        self.max_capital = max_capital
 
     def print_order(self):
         """
@@ -86,22 +87,6 @@ class OrderEvent(Event):
             "Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" %
             (self.symbol, self.order_type, self.quantity, self.direction)
            )
-
-    def calculate_ib_commission(self):
-        """
-        Calculates the fees of trading based on an Interactive
-        Brokers fee structure for API, in USD.
-        This does not include exchange or ECN fees.
-        Based on "US API Directed Orders":
-        https://www.interactivebrokers.com/en/index.php?
-        f=commission&p=stocks2
-        """
-        full_cost = 1.3
-        if self.quantity <= 500:
-            full_cost = max(1.3, 0.013 * self.quantity)
-        else: # Greater than 500
-            full_cost = max(1.3, 0.008 * self.quantity)
-        return full_cost
 
 
 class FillEvent(Event):

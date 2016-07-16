@@ -5,18 +5,15 @@
 
 from __future__ import print_function
 
-from abc import ABCMeta, abstractmethod
-
 try:
     import Queue as queue
 except ImportError:
     import queue
 
-import datetime
 from event import SignalEvent
 from data import SecurityMasterDataHandler
 from backtest import Backtest
-from execution import SimulatedExecutionHandler
+from execution import *
 from portfolio import Portfolio
 from order import *
 
@@ -128,6 +125,7 @@ class BuyAndHoldStrategy(Strategy):
 if __name__ == '__main__':
 
     symbol_list = ['AAPL', 'GOOG']
+
     initial_capital = 100000.0
     heartbeat = 0.0
 
@@ -141,7 +139,7 @@ if __name__ == '__main__':
 
     backtest = Backtest(
         symbol_list, initial_capital, heartbeat,
-        start_date, data_handler, SimulatedExecutionHandler,
+        start_date, data_handler, SimulatedExecutionHandlerWithCommision,
         Portfolio, BuyAndHoldStrategy, order_method
     )
     backtest.simulate_trading()
