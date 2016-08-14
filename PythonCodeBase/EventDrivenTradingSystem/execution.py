@@ -125,6 +125,7 @@ class SimulatedExecutionHandlerWithCommision(ExecutionHandler):
 
             if max_capital < total_cost:
                 fill_event.quantity -= ceil((total_cost - event.max_capital) / unit_cost)
+                fill_event.commission = fill_event.calculate_ib_commission()
 
             self.events.put(fill_event)
 

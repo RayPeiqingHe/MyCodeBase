@@ -7,7 +7,6 @@ import os, os.path
 import numpy as np
 import pandas as pd
 from event import MarketEvent
-import pymssql as mdb
 from ConfigParser import SafeConfigParser
 
 
@@ -22,15 +21,6 @@ class DataHandler(object):
     system will be treated identically by the rest of the backtesting suite.
     """
     __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def _get_new_bar(self, symbol):
-        """
-        Returns the latest bar from the data feed.
-        """
-
-        for b in self.symbol_data[symbol]:
-            yield b
 
     def _get_latest_symbol_data(self, symbol):
         """
@@ -50,6 +40,19 @@ class DataHandler(object):
         bars_list = self._get_latest_symbol_data(symbol)
 
         return bars_list[-1]
+
+    def get_current_bar_total_number(self, symbol):
+        """
+        Return the total number of bars that has been processed
+
+        :param symbol:
+        :return:
+        """
+        try:
+            len(self.latest_symbol_data[symbol].index)
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
 
     @abstractmethod
     def get_latest_bars(self, symbol, N=1):
@@ -98,17 +101,17 @@ class DataHandler(object):
             print("That symbol is not available in the historical data set.")
             raise
         else:
+            # Notice DataFrame.iterrows returns a collection of tuples
             return np.array([getattr(b[1], val_type) for b in bars_list])
 
     @abstractmethod
     def update_bars(self, events):
         """
         Pushes the latest bar to the latest_symbol_data structure
-        for all symbols in the symbol list.
+        for all symbols in the symbol list.self.latest_symbol_data
         """
         for s in self.symbol_list:
             try:
-                #bar = next(self._get_new_bar(s))
                 bar = next(self.symbol_data[s])
             except StopIteration:
                 self.continue_backtest = False
@@ -143,6 +146,7 @@ class HistoricCSVDataHandler(DataHandler):
         self.csv_dir = csv_dir
         self.symbol_list = symbol_list
         self.symbol_data = {}
+        # a dictionary of list
         self.latest_symbol_data = {}
         self.continue_backtest = True
         self._open_convert_csv_files()
@@ -184,9 +188,6 @@ class HistoricCSVDataHandler(DataHandler):
         Returns the last bar from the latest_symbol list.
         """
         return super(HistoricCSVDataHandler, self).get_latest_bar(symbol)
-
-    def _get_new_bar(self, symbol):
-        return super(HistoricCSVDataHandler, self)._get_new_bar(symbol)
 
     def get_latest_bars(self, symbol, N=1):
         """
@@ -230,7 +231,7 @@ class SecurityMasterDataHandler(DataHandler):
     to obtain the "latest" bar in a manner identical to a live
     trading interface.
     """
-    def __init__(self, symbol_list):
+    def __init__(self, symbol_list, sql_conn):
         """
         Initialises the historic data handler by requesting
         the location of the CSV files and a list of symbols.
@@ -245,46 +246,44 @@ class SecurityMasterDataHandler(DataHandler):
 
         # Obtain a database connection to the MySQL instance
         # Connect to the MySQL instance
-        import os
-        curr_path = os.path.dirname(os.path.abspath(__file__))
-        configFile = os.path.join(curr_path, 'config.ini')
-
         parser = SafeConfigParser()
-        parser.read(configFile)
-
-        # Connect to the MySQL instance
-        self.db_host = parser.get('log_in', 'host')
-        self.db_name = parser.get('log_in', 'db')
-        self.db_user = parser.get('log_in', 'username')
-        self.db_pass = parser.get('log_in', 'password')
+        parser.read('config.ini')
         self.db_query = parser.get('log_in', 'security_master_query')
 
         self.symbol_list = symbol_list
         self.symbol_data = {}
+        # It is a dictionary of string and list
         self.latest_symbol_data = {}
         self.continue_backtest = True
-        self._read_sql_datta()
+        self._read_sql_datta(sql_conn)
 
 
-    def _read_sql_datta(self):
+    def _read_sql_datta(self, sql_conn):
         """
         Opens the SQL connection using the given credential, converting
         them into pandas DataFrames within a symbol dictionary.
         For this handler it will be assumed that the data is
         taken from Yahoo. Thus its format will be respected.
+
+        parameters
+        ==========
+        sql_conn_cls: subclass of SqlConnWrapper
+            we will use it to instantiate the object to connnect to sql
         """
         comb_index = None
         self.start_dt = None
+
         for s in self.symbol_list:
             # Load the CSV file with no header information, indexed on date
-            cnxn = mdb.connect(
-                server=self.db_host, user=self.db_user,
-                password=self.db_pass, database=self.db_name, autocommit=True)
 
-            sql_query = self.db_query % s
+            with sql_conn:
+                sql_query = self.db_query % s
 
-            with cnxn:
-                df = pd.read_sql(sql=sql_query, con=cnxn, index_col='datetime', parse_dates=True)
+                df = sql_conn.execute_query_as_df(sql_query)
+
+                df.set_index('datetime', inplace=True)
+
+                df.index = pd.to_datetime(df.index)
 
                 self.symbol_data[s] = df
 
@@ -312,6 +311,9 @@ class SecurityMasterDataHandler(DataHandler):
             self.symbol_data[s] = self.symbol_data[s].\
             reindex(index=comb_index, method='pad')
 
+            # Add returns column
+            self.symbol_data[s]['returns'] = self.symbol_data[s]['adj_close'].pct_change()*100.0
+
             self.symbol_data[s] = self.symbol_data[s].loc[self.symbol_data[s].index >= self.start_dt].iterrows()
 
         # Now self.symbol_data contains the A generator that iterates over the rows of the frame
@@ -321,9 +323,6 @@ class SecurityMasterDataHandler(DataHandler):
         Returns the last bar from the latest_symbol list.
         """
         return super(SecurityMasterDataHandler, self).get_latest_bar(symbol)
-
-    def _get_new_bar(self, symbol):
-        return super(SecurityMasterDataHandler, self)._get_new_bar(symbol)
 
     def get_latest_bars(self, symbol, N=1):
         """

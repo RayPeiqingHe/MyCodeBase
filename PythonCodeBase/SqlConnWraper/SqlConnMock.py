@@ -2,7 +2,6 @@
 
 from SqlConnWrapper import SqlConnWrapper
 import pandas as pd
-import os
 import csv
 
 
@@ -24,7 +23,7 @@ class SqlConnMock(SqlConnWrapper) :
 
     def __init__(self, file_name):
 
-        self.data_file = os.path.join('data', file_name)
+        self.data_file = file_name
 
     def __enter__(self):
         self.file = open(self.data_file)
@@ -52,10 +51,12 @@ class SqlConnMock(SqlConnWrapper) :
 
 
 if __name__ == '__main__':
-    with SqlConnMock('test.csv') as sql_mock:
+    with SqlConnMock('data/test.csv') as sql_mock:
         df = sql_mock.execute_query_as_df(None)
 
-        df.set_index('Date', inplace=True)
+        df.set_index('datetime', inplace=True)
+
+        df.index = pd.to_datetime(df.index)
 
         print df
 

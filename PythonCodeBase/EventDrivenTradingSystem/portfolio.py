@@ -7,11 +7,10 @@ try:
 except ImportError:
     import queue
 
-import numpy as np
 import pandas as pd
 
 from event import FillEvent, OrderEvent
-from performance import create_sharpe_ratio, create_drawdowns, create_cagr
+from performance import create_sharpe_ratio, create_drawdowns, create_cagr, calc_stats
 from order import BaseOrder
 
 
@@ -66,7 +65,7 @@ class Portfolio(object):
         Constructs the positions list using the start_date
         to determine when the time index will begin.
         """
-        #d = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+
         d = dict([(s, 0) for s in self.symbol_list])
         d['datetime'] = self.start_date
 
@@ -266,9 +265,6 @@ class Portfolio(object):
         based on the portfolio logic.
         """
         if event.type == 'SIGNAL':
-            #order_event = self.generate_naive_order(event)
-
-            #self.events.put(order_event)
 
             self.order_method.generate_order(event, self.events, self)
 
@@ -321,5 +317,17 @@ class Portfolio(object):
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),
                  ("Drawdown Duration", "%d" % dd_duration)]
 
+        self.summary_stats = {"Total Return" : (total_return - 1.0) * 100.0,
+                              "Sharpe Ratio" : sharpe_ratio,
+                              "Max Drawdown" : max_dd * 100.0}
+
         self.equity_curve.to_csv('equity.csv')
+        self.position_history.to_csv('position.csv')
         return stats
+
+    def output_summary_stats2(self):
+        stats = calc_stats(self.equity_curve[['total']])
+
+        return stats
+
+

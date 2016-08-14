@@ -32,7 +32,7 @@ class Backtest(object):
         intial_capital - The starting capital for the portfolio.
         heartbeat - Backtest "heartbeat" in seconds
         start_date - The start datetime of the strategy.
-        data_handler - (Class) Handles the market data feed.
+        data_handler - data handler object to Handles the market data feed.
         execution_handler - (Class) Handles the orders/fills for trades.
         portfolio - (Class) Keeps track of portfolio current and prior positions.
         strategy - (Class) Generates signals based on market data.
@@ -43,13 +43,10 @@ class Backtest(object):
         self.heartbeat = heartbeat
         self.start_date = start_date
 
-        # Instead of create the data handler object in the class
-        # pass it as a parameter
         self.data_handler = data_handler
 
         # cls means class. Remember class is an object
         # We later call the constructor of the class to create objects
-        #self.data_handler_cls = data_handler
         self.execution_handler_cls = execution_handler
         self.portfolio_cls = portfolio
         self.strategy_cls = strategy
@@ -76,7 +73,9 @@ class Backtest(object):
         print(
             "Creating DataHandler, Strategy, Portfolio and ExecutionHandler"
         )
-        #self.data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list)
+
+        self.start_date = self.data_handler.start_dt
+
         self.strategy = self.strategy_cls(self.data_handler, self.events)
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, self.start_date, 
                                             self.order_cls(), self.initial_capital)
@@ -138,13 +137,6 @@ class Backtest(object):
         
         print("Creating summary stats...")
         stats = self.portfolio.output_summary_stats()
-        
-        print("Creating equity curve...")
-        print(self.portfolio.equity_curve.head(10))
-        print(self.portfolio.equity_curve.tail(10))
-
-        print("Print position history")
-        print(self.portfolio.position_history.head(10))
 
         pprint.pprint(stats)
 
@@ -152,12 +144,19 @@ class Backtest(object):
         print("Orders: %s" % self.orders)
         print("Fills: %s" % self.fills)
 
+        stats2 = self.portfolio.output_summary_stats2()
+
+        stats2.display()
+
+    def output_plot(self):
         self._output_plot(self.portfolio.equity_curve)
 
     def _output_plot(self, df_performance):
         """
         Plotting the Equity curve, return, and drawdown
 
+        parameter : Data Frame
+            The equity curve from portfolio object
         """
 
         my_styles = ['b', 'k', 'r']
@@ -169,8 +168,8 @@ class Backtest(object):
         axes = df_performance[cols].plot(subplots=True,
             figsize=(8, 6), grid=True, style=my_styles, sharex=False)
 
-        for ax in axes:
-            ax.set_ylabel(label[0])
+        for idx, ax in enumerate(axes):
+            ax.set_ylabel(label[idx])
 
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 

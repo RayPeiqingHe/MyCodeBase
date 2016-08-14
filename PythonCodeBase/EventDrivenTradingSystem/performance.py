@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
+import ffn
 
 
 def create_sharpe_ratio(returns, periods=252):
@@ -14,8 +15,6 @@ def create_sharpe_ratio(returns, periods=252):
     periods - Daily (252), Hourly (252*6.5), Minutely(252*6.5*60) etc.
     """
 
-    #print('averge: {0} : std {1}'.format(np.mean(returns), np.std(returns)))
-
     return np.sqrt(periods) * np.mean(returns) / np.std(returns)
 
 def create_cagr(tot_return, returns, periods=252):
@@ -26,7 +25,6 @@ def create_cagr(tot_return, returns, periods=252):
     :param periods:
     :return:
     """
-    #print('total return: {0} : number of periods {1}'.format(tot_return, len(returns) - 1))
 
     return pow(tot_return, 1. / ((len(returns) - 1.) / periods)) - 1
 
@@ -38,6 +36,7 @@ def create_drawdowns(pnl):
 
     Parameters:
     pnl - A pandas Series representing period percentage returns.
+          In this case it is the equity curve
 
     Returns:
     drawdown, duration - Highest peak-to-trough drawdown and duration.
@@ -58,6 +57,15 @@ def create_drawdowns(pnl):
 
         # since hwm only contains the last high water market
         # It garantees hwm[t] >= pnl[t]
-        drawdown[t]= (hwm[t]-pnl[t])
-        duration[t]= (0 if drawdown[t] == 0 else duration[t-1]+1)
+        drawdown[t]= (hwm[t]-pnl[t]) / hwm[t]
+        #duration[t]= (0 if drawdown[t] == 0 else duration[t-1]+1)
+        duration[t]= (0 if drawdown[t] <= 0 else duration[t-1]+1)
+
     return drawdown, drawdown.max(), duration.max()
+
+def calc_stats(prices):
+
+    stats = prices.calc_stats()
+    return stats
+
+

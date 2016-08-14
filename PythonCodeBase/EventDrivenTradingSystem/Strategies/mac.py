@@ -14,6 +14,7 @@ from data import SecurityMasterDataHandler
 from execution import *
 from portfolio import Portfolio
 from order import *
+import datetime as dt
 
 
 class MovingAverageCrossStrategy(Strategy):
@@ -70,8 +71,9 @@ class MovingAverageCrossStrategy(Strategy):
                 bars = self.bars.get_latest_bars_values(
                     s, "adj_close", N=self.long_window
                 )
+
                 bar_date = self.bars.get_latest_bar_datetime(s)
-                if bars is not None and bars != []:
+                if bars is not None and bars != [] and len(bars) >= 400:
                     short_sma = np.mean(bars[-self.short_window:])
                     long_sma = np.mean(bars[-self.long_window:])
 
@@ -80,13 +82,13 @@ class MovingAverageCrossStrategy(Strategy):
                     sig_dir = ""
 
                     if short_sma > long_sma and self.bought[s] == "OUT":
-                        print("LONG: {0} {1}".format(bar_date, s))
+                        print("LONG: {0} {1} short_sma: {2} long_sma: {3}".format(bar_date, s, short_sma, long_sma))
                         sig_dir = 'LONG'
                         signal = SignalEvent(self.strategy_id, [symbol], dt, sig_dir, 1.0)
                         self.events.put(signal)
                         self.bought[s] = 'LONG'
                     elif short_sma < long_sma and self.bought[s] == "LONG":
-                        print("SHORT: {0} {1}".format(bar_date, s))
+                        print("SHORT: {0} {1} short_sma: {2} long_sma: {3}".format(bar_date, s, short_sma, long_sma))
                         sig_dir = 'EXIT'
                         signal = SignalEvent(self.strategy_id, [symbol], dt, sig_dir, 1.0)
                         self.events.put(signal)
@@ -94,12 +96,21 @@ class MovingAverageCrossStrategy(Strategy):
 
 
 if __name__ == "__main__":
-    csv_dir = '/path/to/your/csv/file'  # CHANGE THIS!
+
+    import sys
+
+    if '../SqlConnWraper' not in sys.path:
+        sys.path.append('../SqlConnWraper')
+
+    from BuildSQLConnection import build_sql_conn
+
+    cxcn = build_sql_conn('config.ini')
+
     symbol_list = ['AAPL']
     initial_capital = 100000.0
     heartbeat = 0.0
 
-    data_handler = SecurityMasterDataHandler(symbol_list)
+    data_handler = SecurityMasterDataHandler(symbol_list, cxcn)
 
     start_date = data_handler.start_dt
 
@@ -111,3 +122,5 @@ if __name__ == "__main__":
         Portfolio, MovingAverageCrossStrategy, order_method
     )
     backtest.simulate_trading()
+
+    backtest.output_plot()

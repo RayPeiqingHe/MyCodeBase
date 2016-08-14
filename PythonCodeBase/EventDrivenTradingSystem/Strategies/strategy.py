@@ -24,6 +24,11 @@ class StrategyMetaClass(ABCMeta):
 
     """
 
+    # Since we move all strategies class into a sub-folder
+    # Need to change the working directory
+    import os
+    os.chdir(os.path.dirname(os.path.dirname(__file__)))
+
     strategy_id_map = {}
     strategy_cnt = 0
 
@@ -80,7 +85,7 @@ class BuyAndHoldStrategy(Strategy):
 
     def __init__(self, bars, events):
         """
-        Initialises the Moving Average Cross Strategy.
+        Initialises the buy and hold Strategy.
 
         Parameters:
         bars - The DataHandler object that provides bar information
@@ -123,13 +128,21 @@ class BuyAndHoldStrategy(Strategy):
 
 
 if __name__ == '__main__':
+    import sys
 
-    symbol_list = ['AAPL', 'GOOG']
+    if '../SqlConnWraper' not in sys.path:
+        sys.path.append('../SqlConnWraper')
+
+    from BuildSQLConnection import build_sql_conn
+
+    symbol_list = ['AAPL']
 
     initial_capital = 100000.0
     heartbeat = 0.0
 
-    data_handler = SecurityMasterDataHandler(symbol_list)
+    cxcn = build_sql_conn('config.ini')
+
+    data_handler = SecurityMasterDataHandler(symbol_list, cxcn)
 
     start_date = data_handler.start_dt
 
