@@ -40,7 +40,7 @@ def obtain_parse_wiki_snp500(existing_tickers):
     response = requests.get(
         "http://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     )
-    soup = bs4.BeautifulSoup(response.text)
+    soup = bs4.BeautifulSoup(response.text, "lxml")
 
     # This selects the first table, using CSS Selector syntax
     # and then ignores the header row ([1:])
