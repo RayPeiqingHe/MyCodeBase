@@ -14,7 +14,6 @@ from data import SecurityMasterDataHandler
 from execution import *
 from portfolio import Portfolio
 from order import *
-import datetime as dt
 
 
 class MovingAverageCrossStrategy(Strategy):
@@ -79,7 +78,6 @@ class MovingAverageCrossStrategy(Strategy):
 
                     symbol = s
                     dt = datetime.datetime.utcnow()
-                    sig_dir = ""
 
                     if short_sma > long_sma and self.bought[s] == "OUT":
                         print("LONG: {0} {1} short_sma: {2} long_sma: {3}".format(bar_date, s, short_sma, long_sma))

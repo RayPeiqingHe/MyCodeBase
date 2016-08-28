@@ -1,7 +1,5 @@
 from __future__ import print_function
 
-import datetime
-from math import floor
 try:
     import Queue as queue
 except ImportError:
@@ -53,12 +51,20 @@ class Portfolio(object):
         self.all_positions = self.construct_all_positions()
 
         # Keep track of the most recent position
-        self.current_positions = dict([(s, 0) for s in self.symbol_list] )
+        self.current_positions = dict([(s, 0) for s in self.symbol_list])
 
         # It is a list of dictionary
         self.all_holdings = self.construct_all_holdings()
 
         self.current_holdings = self.construct_current_holdings()
+
+        self.summary_stats = None
+
+        self.position_curve = None
+
+        self.position_history = None
+
+        self.equity_curve = None
 
     def construct_all_positions(self):
         """
@@ -79,7 +85,7 @@ class Portfolio(object):
         Constructs the holdings list using the start_date
         to determine when the time index will begin.
         """
-        d = dict([(s, 0.0) for s in self.symbol_list] )
+        d = dict([(s, 0.0) for s in self.symbol_list])
         d['datetime'] = self.start_date
         d['cash'] = self.initial_capital
         d['commission'] = 0.0
@@ -95,7 +101,7 @@ class Portfolio(object):
         This constructs the dictionary which will hold the instantaneous
         value of the portfolio across all symbols.
         """
-        d = dict( [(s, 0.0) for s in self.symbol_list] )
+        d = dict([(s, 0.0) for s in self.symbol_list])
         d['cash'] = self.initial_capital
         d['commission'] = 0.0
         d['total'] = self.initial_capital
@@ -122,7 +128,7 @@ class Portfolio(object):
         if self.start_date == latest_datetime:
             dp = self.all_positions[0]
         else:
-            dp = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+            dp = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
 
             # Append the current positions
             self.all_positions.append(dp)
@@ -140,7 +146,7 @@ class Portfolio(object):
         if self.start_date == latest_datetime:
             dh = self.all_holdings[0]
         else:
-            dh = dict( (k,v) for k, v in [(s, 0) for s in self.symbol_list] )
+            dh = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
 
             # Append the current holdings
             self.all_holdings.append(dh)
@@ -232,7 +238,7 @@ class Portfolio(object):
 
         return order
 
-    def generate_order_core(self, signal, mkt_quantity, order_type = 'MKT'):
+    def generate_order_core(self, signal, mkt_quantity, order_type='MKT'):
         """
         Central logic to generate order for execution
 
@@ -244,7 +250,7 @@ class Portfolio(object):
 
         symbol = signal.symbol
         direction = signal.signal_type
-        strength = signal.strength
+        # strength = signal.strength
 
         cur_quantity = self.current_positions[symbol]
 
@@ -317,9 +323,9 @@ class Portfolio(object):
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),
                  ("Drawdown Duration", "%d" % dd_duration)]
 
-        self.summary_stats = {"Total Return" : (total_return - 1.0) * 100.0,
-                              "Sharpe Ratio" : sharpe_ratio,
-                              "Max Drawdown" : max_dd * 100.0}
+        self.summary_stats = {"Total Return": (total_return - 1.0) * 100.0,
+                              "Sharpe Ratio": sharpe_ratio,
+                              "Max Drawdown": max_dd * 100.0}
 
         self.equity_curve.to_csv('equity.csv')
         self.position_history.to_csv('position.csv')
@@ -329,5 +335,3 @@ class Portfolio(object):
         stats = calc_stats(self.equity_curve[['total']])
 
         return stats
-
-

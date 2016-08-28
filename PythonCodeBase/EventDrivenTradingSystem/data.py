@@ -283,6 +283,8 @@ class SecurityMasterDataHandler(DataHandler):
 
                 df.set_index('datetime', inplace=True)
 
+                df.sort_index(inplace=True)
+
                 df.index = pd.to_datetime(df.index)
 
                 self.symbol_data[s] = df

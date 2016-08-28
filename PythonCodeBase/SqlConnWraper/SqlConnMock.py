@@ -5,8 +5,8 @@ import pandas as pd
 import csv
 
 
-class SqlConnMock(SqlConnWrapper) :
-    ''' class as the base Wrapper class for SQL data access
+class SqlConnMock(SqlConnWrapper):
+    """ class as the base Wrapper class for SQL data access
 
     Attributes
     ==========
@@ -19,7 +19,7 @@ class SqlConnMock(SqlConnWrapper) :
        Execute a input sql query and return the result
     execute_query_as_df:
        Execute a input sql query and return a Pandas data frame
-    '''
+    """
 
     def __init__(self, file_name):
 
@@ -30,7 +30,7 @@ class SqlConnMock(SqlConnWrapper) :
 
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, obj_type, value, traceback):
         if self.file is not None:
             self.file.close()
 
@@ -45,9 +45,9 @@ class SqlConnMock(SqlConnWrapper) :
         return data
 
     def execute_query_as_df(self, query):
-        df = pd.read_csv(self.file)
+        result = pd.read_csv(self.file)
 
-        return df
+        return result
 
 
 if __name__ == '__main__':
@@ -59,5 +59,3 @@ if __name__ == '__main__':
         df.index = pd.to_datetime(df.index)
 
         print df
-
-

@@ -6,7 +6,8 @@
 from __future__ import print_function
 
 import pandas as pd
-from sklearn.qda import QDA
+# from sklearn.qda import QDA
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
 from Strategies.strategy import Strategy
 from event import SignalEvent
@@ -31,9 +32,9 @@ class SPYDailyForecastStrategy(Strategy):
         self.events = events
         self.datetime_now = datetime.datetime.utcnow()
 
-        self.model_start_date = datetime.datetime(2001,1,10)
-        self.model_end_date = datetime.datetime(2005,12,31)
-        self.model_start_test_date = datetime.datetime(2005,1,1)
+        self.model_start_date = datetime.datetime(2001, 1, 10)
+        self.model_end_date = datetime.datetime(2005, 12, 31)
+        self.model_start_test_date = datetime.datetime(2005, 1, 1)
 
         self.long_market = False
         self.short_market = False
@@ -50,18 +51,19 @@ class SPYDailyForecastStrategy(Strategy):
 
         # Use the prior two days of returns as predictor
         # values, with direction as the response
-        X = snpret[["Lag1","Lag2"]]
+        x = snpret[["Lag1", "Lag2"]]
         y = snpret["Direction"]
 
         # Create training and test sets
         start_test = self.model_start_test_date
-        X_train = X[X.index < start_test]
-        X_test = X[X.index >= start_test]
+        x_train = x[x.index < start_test]
+        # x_test = x[x.index >= start_test]
         y_train = y[y.index < start_test]
-        y_test = y[y.index >= start_test]
+        # y_test = y[y.index >= start_test]
 
-        model = QDA()
-        model.fit(X_train, y_train)
+        model = QuadraticDiscriminantAnalysis()
+        model.fit(x_train, y_train)
+
         return model
 
     def calculate_signals(self, event):
@@ -83,37 +85,45 @@ class SPYDailyForecastStrategy(Strategy):
                         'Lag2': lags[2]*100.0
                     }
                 )
-                pred = self.model.predict(pred_series)
+                pred = self.model.predict(pred_series.reshape(1, -1))
+
+                # bar_date = self.bars.get_latest_bar_datetime(sym)
+
                 if pred > 0 and not self.long_market:
                     self.long_market = True
+                    # print('LONG: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'LONG', 1.0)
                     self.events.put(signal)
 
                 if pred < 0 and self.long_market:
                     self.long_market = False
+                    # print('SHORT: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'EXIT', 1.0)
                     self.events.put(signal)
 
 
 if __name__ == "__main__":
-    csv_dir = '/path/to/your/csv/file'  # CHANGE THIS!
+
+    import sys
+
+    if '../SqlConnWraper' not in sys.path:
+        sys.path.append('../SqlConnWraper')
+
+    from BuildSQLConnection import build_sql_conn
+
+    cxcn = build_sql_conn('config.ini', '../SqlConnWraper/data/spy.csv')
+
     symbol_list = ['SPY']
     initial_capital = 100000.0
     heartbeat = 0.0
-    start_date = datetime.datetime(2006,1,3)
 
     # The returns columns is computed in data handler
-    data_handler = SecurityMasterDataHandler
+    data_handler = SecurityMasterDataHandler(symbol_list, cxcn)
 
-    '''
-    backtest = Backtest(
-        csv_dir, symbol_list, initial_capital, heartbeat,
-        start_date, HistoricCSVDataHandler, SimulatedExecutionHandler,
-        Portfolio, SPYDailyForecastStrategy
-    )
-    '''
+    start_date = data_handler.start_dt
 
     order_method = EquityWeightOrder
+    # order_method = NaiveOrder
 
     backtest = Backtest(
         symbol_list, initial_capital, heartbeat,
@@ -123,3 +133,4 @@ if __name__ == "__main__":
 
     backtest.simulate_trading()
 
+    backtest.output_plot()

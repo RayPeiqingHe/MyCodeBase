@@ -1,6 +1,6 @@
 
 
-def build_sql_conn(config_file):
+def build_sql_conn(config_file, data_file = None):
     from ConfigParser import SafeConfigParser
 
     parser = SafeConfigParser()
@@ -9,15 +9,18 @@ def build_sql_conn(config_file):
     bt_mode = parser.get('log_in', 'bt_mode')
 
     if bt_mode == 'mock':
-        return build_test_conn()
+        return build_test_conn(data_file)
     else:
         return build_prod_conn(config_file)
 
-def build_test_conn():
+def build_test_conn(data_file = None):
 
     from SqlConnMock import SqlConnMock
 
-    cxcn = SqlConnMock('../SqlConnWraper/data/AAPL.csv')
+    if data_file is None:
+        data_file = '../SqlConnWraper/data/AAPL.csv'
+
+    cxcn = SqlConnMock(data_file)
 
     return cxcn
 

@@ -2,8 +2,9 @@ from __future__ import print_function
 from abc import ABCMeta, abstractmethod
 from ConnInfo import ConnInfo
 
+
 class SqlConnWrapper(object):
-    ''' class as the base Wrapper class for SQL data access
+    """ class as the base Wrapper class for SQL data access
 
     Attributes
     ==========
@@ -16,7 +17,7 @@ class SqlConnWrapper(object):
        Set up connection to the SQL data base
     execute_query:
        Execute a input sql query and return the result
-    '''
+    """
 
     __metaclass__ = ABCMeta
 
@@ -35,10 +36,9 @@ class SqlConnWrapper(object):
         raise NotImplementedError("Should implement __enter__()")
 
     @abstractmethod
-    def __exit__(self, type, value, traceback):
-        raise NotImplementedError("Should implement __exit__(type, value, traceback)")
+    def __exit__(self, obj_type, value, traceback):
+        raise NotImplementedError("Should implement __exit__(obj_type, value, traceback)")
 
     @abstractmethod
     def execute_query_as_df(self, query):
         raise NotImplementedError("Should  execute_query_as_df(self, query)")
-

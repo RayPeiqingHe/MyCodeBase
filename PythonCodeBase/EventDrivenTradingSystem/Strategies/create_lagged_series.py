@@ -7,7 +7,7 @@ import datetime
 
 import numpy as np
 import pandas as pd
-from pandas.io.data import DataReader
+import pandas_datareader.data as web
 
 
 def create_lagged_series(symbol, start_date, end_date, lags=5):
@@ -21,10 +21,10 @@ def create_lagged_series(symbol, start_date, end_date, lags=5):
     """
 
     # Obtain stock information from Yahoo Finance
-    ts = DataReader(
-    	symbol, "yahoo",
-    	start_date-datetime.timedelta(days=365),
-    	end_date
+    ts = web.DataReader(
+        symbol, "yahoo",
+        start_date-datetime.timedelta(days=365),
+        end_date
     )
 
     # Create the new lagged DataFrame
@@ -33,7 +33,7 @@ def create_lagged_series(symbol, start_date, end_date, lags=5):
     tslag["Volume"] = ts["Volume"]
 
     # Create the shifted lag series of prior trading period close values
-    for i in range(0,lags):
+    for i in range(0, lags):
         tslag["Lag%s" % str(i+1)] = ts["Adj Close"].shift(i+1)
 
     # Create the returns DataFrame
@@ -43,13 +43,13 @@ def create_lagged_series(symbol, start_date, end_date, lags=5):
 
     # If any of the values of percentage returns equal zero, set them to
     # a small number (stops issues with QDA model in scikit-learn)
-    for i,x in enumerate(tsret["Today"]):
-        if (abs(x) < 0.0001):
-            #tsret["Today"][i] = 0.0001
+    for i, x in enumerate(tsret["Today"]):
+        if abs(x) < 0.0001:
+            # tsret["Today"][i] = 0.0001
             tsret.ix[i, "Today"] = 0.0001
 
     # Create the lagged percentage returns columns
-    for i in range(0,lags):
+    for i in range(0, lags):
         tsret[
             "Lag%s" % str(i+1)
         ] = tslag["Lag%s" % str(i+1)].pct_change()*100.0

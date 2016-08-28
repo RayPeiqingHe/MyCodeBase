@@ -60,7 +60,7 @@ class OrderEvent(Event):
     The order contains a symbol (e.g. GOOG), a type (market or limit),
     quantity and a direction.
     """
-    def __init__(self, symbol, order_type, quantity, direction, max_capital):
+    def __init__(self, symbol, order_type, quantity, direction, max_capital = None):
         """
         Initialises the order type, setting whether it is
         a Market order (’MKT’) or Limit order (’LMT’), has

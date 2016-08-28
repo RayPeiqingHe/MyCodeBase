@@ -17,16 +17,20 @@ def create_sharpe_ratio(returns, periods=252):
 
     return np.sqrt(periods) * np.mean(returns) / np.std(returns)
 
+
 def create_cagr(tot_return, returns, periods=252):
     """
     Computation of CAGR
 
-    :param returns:
-    :param periods:
-    :return:
+    Parameters
+    ==========
+    tot_return: float
+    returns: DataFrame
+    periods: int
     """
 
     return pow(tot_return, 1. / ((len(returns) - 1.) / periods)) - 1
+
 
 def create_drawdowns(pnl):
     """
@@ -48,8 +52,8 @@ def create_drawdowns(pnl):
 
     # Create the drawdown and duration series
     idx = pnl.index
-    drawdown = pd.Series(index = idx)
-    duration = pd.Series(index = idx)
+    drawdown = pd.Series(index=idx)
+    duration = pd.Series(index=idx)
 
     # Loop over the index range
     for t in range(1, len(idx)):
@@ -57,15 +61,14 @@ def create_drawdowns(pnl):
 
         # since hwm only contains the last high water market
         # It garantees hwm[t] >= pnl[t]
-        drawdown[t]= (hwm[t]-pnl[t]) / hwm[t]
-        #duration[t]= (0 if drawdown[t] == 0 else duration[t-1]+1)
-        duration[t]= (0 if drawdown[t] <= 0 else duration[t-1]+1)
+        drawdown[t] = (hwm[t]-pnl[t]) / hwm[t]
+        # duration[tv]= (0 if drawdown[t] == 0 else duration[t-1]+1)
+        duration[t] = (0 if drawdown[t] <= 0 else duration[t-1]+1)
 
     return drawdown, drawdown.max(), duration.max()
+
 
 def calc_stats(prices):
 
     stats = prices.calc_stats()
     return stats
-
-
