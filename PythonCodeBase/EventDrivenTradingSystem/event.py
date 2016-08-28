@@ -60,7 +60,7 @@ class OrderEvent(Event):
     The order contains a symbol (e.g. GOOG), a type (market or limit),
     quantity and a direction.
     """
-    def __init__(self, symbol, order_type, quantity, direction, max_capital = None):
+    def __init__(self, symbol, order_type, quantity, direction, max_capital=None):
         """
         Initialises the order type, setting whether it is
         a Market order (’MKT’) or Limit order (’LMT’), has
@@ -86,7 +86,7 @@ class OrderEvent(Event):
         print(
             "Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" %
             (self.symbol, self.order_type, self.quantity, self.direction)
-           )
+            )
 
 
 class FillEvent(Event):
@@ -97,7 +97,7 @@ class FillEvent(Event):
     the commission of the trade from the brokerage.
     """
     def __init__(self, timeindex, symbol, exchange, quantity,
-        direction, fill_cost, commission=None):
+                 direction, fill_cost, commission=None):
         """
         Initialises the FillEvent object. Sets the symbol, exchange,
         quantity, direction, cost of fill and an optional
@@ -139,6 +139,6 @@ class FillEvent(Event):
         full_cost = 1.3
         if self.quantity <= 500:
             full_cost = max(1.3, 0.013 * self.quantity)
-        else: # Greater than 500
+        else:  # Greater than 500
             full_cost = max(1.3, 0.008 * self.quantity)
         return full_cost

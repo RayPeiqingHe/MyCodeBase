@@ -1,6 +1,6 @@
 
 
-def build_sql_conn(config_file, data_file = None):
+def build_sql_conn(config_file, data_file=None):
     from ConfigParser import SafeConfigParser
 
     parser = SafeConfigParser()
@@ -13,7 +13,8 @@ def build_sql_conn(config_file, data_file = None):
     else:
         return build_prod_conn(config_file)
 
-def build_test_conn(data_file = None):
+
+def build_test_conn(data_file=None):
 
     from SqlConnMock import SqlConnMock
 
@@ -23,6 +24,7 @@ def build_test_conn(data_file = None):
     cxcn = SqlConnMock(data_file)
 
     return cxcn
+
 
 def build_prod_conn(config_file):
 
@@ -34,10 +36,11 @@ def build_prod_conn(config_file):
 
     return cxcn
 
-if __name__ == '__main__':
-    config_file = '../EventDrivenTradingSystem/config.ini'
 
-    conn = build_sql_conn(config_file)
+if __name__ == '__main__':
+    test_config = '../EventDrivenTradingSystem/config.ini'
+
+    conn = build_sql_conn(test_config)
 
     with conn:
         df = conn.execute_query_as_df(None)

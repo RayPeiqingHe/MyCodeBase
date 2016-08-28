@@ -2,8 +2,9 @@
 
 from ConfigParser import SafeConfigParser
 
+
 class ConnInfo:
-    '''
+    """
     Wrapper class for connection info
 
     Attributes
@@ -16,7 +17,7 @@ class ConnInfo:
          the user name
     db_pass : string
          the encryted password
-    '''
+    """
 
     def __init__(self, config_file):
         parser = SafeConfigParser()

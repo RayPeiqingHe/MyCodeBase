@@ -3,7 +3,8 @@
 # data.py
 from __future__ import print_function
 from abc import ABCMeta, abstractmethod
-import os, os.path
+import os
+import os.path
 import numpy as np
 import pandas as pd
 from event import MarketEvent
@@ -55,7 +56,7 @@ class DataHandler(object):
             raise
 
     @abstractmethod
-    def get_latest_bars(self, symbol, N=1):
+    def get_latest_bars(self, symbol, n=1):
         """
         Returns the last N bars from the latest_symbol list,
         or N-k if less available.
@@ -66,7 +67,7 @@ class DataHandler(object):
             print("That symbol is not available in the historical data set.")
             raise
         else:
-            return bars_list[-N:]
+            return bars_list[-n:]
 
     @abstractmethod
     def get_latest_bar_datetime(self, symbol):
@@ -88,7 +89,7 @@ class DataHandler(object):
         return getattr(bars_list[-1][1], val_type)
 
     @abstractmethod
-    def get_latest_bars_values(self, symbol, val_type, N=1):
+    def get_latest_bars_values(self, symbol, val_type, n=1):
         """
         Returns the last N bar values from the
         latest_symbol list, or N-k if less available.
@@ -96,7 +97,7 @@ class DataHandler(object):
         val_type: the data field name, for instances, adj_close
         """
         try:
-            bars_list = self.get_latest_bars(symbol, N)
+            bars_list = self.get_latest_bars(symbol, n)
         except KeyError:
             print("That symbol is not available in the historical data set.")
             raise
@@ -124,6 +125,7 @@ class DataHandler(object):
         if self.continue_backtest:
             events.put(MarketEvent())
 
+
 class HistoricCSVDataHandler(DataHandler):
     """
     HistoricCSVDataHandler is designed to read CSV files for
@@ -142,7 +144,7 @@ class HistoricCSVDataHandler(DataHandler):
         csv_dir - Absolute directory path to the CSV files.
         symbol_list - A list of symbol strings.
         """
-        #self.events = events
+        # self.events = events
         self.csv_dir = csv_dir
         self.symbol_list = symbol_list
         self.symbol_data = {}
@@ -150,7 +152,6 @@ class HistoricCSVDataHandler(DataHandler):
         self.latest_symbol_data = {}
         self.continue_backtest = True
         self._open_convert_csv_files()
-
 
     def _open_convert_csv_files(self):
         """
@@ -162,26 +163,28 @@ class HistoricCSVDataHandler(DataHandler):
         comb_index = None
         for s in self.symbol_list:
             # Load the CSV file with no header information, indexed on date
-            self.symbol_data[s] = pd.io.parsers.read_csv(
+            self.symbol_data[s] = pd.read_csv(
                 os.path.join(self.csv_dir, '%s.csv' % s),
                 header=0, index_col=0, parse_dates=True,
                 names=[
-                'datetime', 'open', 'high',
-                'low', 'close', 'volume', 'adj_close'
+                    'datetime', 'open', 'high',
+                    'low', 'close', 'volume', 'adj_close'
                 ]
                 ).sort()
 
-        # Combine the index to pad forward values
-        if comb_index is None:
-            comb_index = self.symbol_data[s].index
-        else:
-            comb_index.union(self.symbol_data[s].index)
-        # Set the latest symbol_data to None
-        self.latest_symbol_data[s] = []
+            # Combine the index to pad forward values
+            if comb_index is None:
+                comb_index = self.symbol_data[s].index
+            else:
+                comb_index.union(self.symbol_data[s].index)
+
+            # Set the latest symbol_data to None
+            self.latest_symbol_data[s] = []
+
         # Reindex the dataframes
         for s in self.symbol_list:
             self.symbol_data[s] = self.symbol_data[s].\
-            reindex(index=comb_index, method='pad').iterrows()
+                reindex(index=comb_index, method='pad').iterrows()
 
     def get_latest_bar(self, symbol):
         """
@@ -189,12 +192,12 @@ class HistoricCSVDataHandler(DataHandler):
         """
         return super(HistoricCSVDataHandler, self).get_latest_bar(symbol)
 
-    def get_latest_bars(self, symbol, N=1):
+    def get_latest_bars(self, symbol, n=1):
         """
         Returns the last N bars from the latest_symbol list,
         or N-k if less available.
         """
-        return super(HistoricCSVDataHandler, self).get_latest_bars(symbol, N)
+        return super(HistoricCSVDataHandler, self).get_latest_bars(symbol, n)
 
     def get_latest_bar_datetime(self, symbol):
         """
@@ -209,12 +212,12 @@ class HistoricCSVDataHandler(DataHandler):
         """
         return super(HistoricCSVDataHandler, self).get_latest_bar_value(symbol, val_type)
 
-    def get_latest_bars_values(self, symbol, val_type, N=1):
+    def get_latest_bars_values(self, symbol, val_type, n=1):
         """
         Returns the last N bar values from the
         latest_symbol list, or N-k if less available.
         """
-        return super(HistoricCSVDataHandler, self).get_latest_bars_values(symbol, val_type, N)
+        return super(HistoricCSVDataHandler, self).get_latest_bars_values(symbol, val_type, n)
 
     def update_bars(self, events):
         """
@@ -242,7 +245,7 @@ class SecurityMasterDataHandler(DataHandler):
         csv_dir - Absolute directory path to the CSV files.
         symbol_list - A list of symbol strings.
         """
-        #self.events = events
+        # self.events = events
 
         # Obtain a database connection to the MySQL instance
         # Connect to the MySQL instance
@@ -255,10 +258,9 @@ class SecurityMasterDataHandler(DataHandler):
         # It is a dictionary of string and list
         self.latest_symbol_data = {}
         self.continue_backtest = True
-        self._read_sql_datta(sql_conn)
+        self._read_sql_data(sql_conn)
 
-
-    def _read_sql_datta(self, sql_conn):
+    def _read_sql_data(self, sql_conn):
         """
         Opens the SQL connection using the given credential, converting
         them into pandas DataFrames within a symbol dictionary.
@@ -280,6 +282,9 @@ class SecurityMasterDataHandler(DataHandler):
                 sql_query = self.db_query % s
 
                 df = sql_conn.execute_query_as_df(sql_query)
+
+                # Convert datetime column to date
+                df['datetime'] = pd.to_datetime(df['datetime'])
 
                 df.set_index('datetime', inplace=True)
 
@@ -308,10 +313,12 @@ class SecurityMasterDataHandler(DataHandler):
                 if tmp > self.start_dt:
                     self.start_dt = tmp
 
+        print('Start Date {0}'.format(self.start_dt))
+
         # Reindex the dataframes
         for s in self.symbol_list:
             self.symbol_data[s] = self.symbol_data[s].\
-            reindex(index=comb_index, method='pad')
+                reindex(index=comb_index, method='pad')
 
             # Add returns column
             self.symbol_data[s]['returns'] = self.symbol_data[s]['adj_close'].pct_change()*100.0
@@ -326,12 +333,12 @@ class SecurityMasterDataHandler(DataHandler):
         """
         return super(SecurityMasterDataHandler, self).get_latest_bar(symbol)
 
-    def get_latest_bars(self, symbol, N=1):
+    def get_latest_bars(self, symbol, n=1):
         """
         Returns the last N bars from the latest_symbol list,
         or N-k if less available.
         """
-        return super(SecurityMasterDataHandler, self).get_latest_bars(symbol, N)
+        return super(SecurityMasterDataHandler, self).get_latest_bars(symbol, n)
 
     def get_latest_bar_datetime(self, symbol):
         """
@@ -346,12 +353,12 @@ class SecurityMasterDataHandler(DataHandler):
         """
         return super(SecurityMasterDataHandler, self).get_latest_bar_value(symbol, val_type)
 
-    def get_latest_bars_values(self, symbol, val_type, N=1):
+    def get_latest_bars_values(self, symbol, val_type, n=1):
         """
         Returns the last N bar values from the
         latest_symbol list, or N-k if less available.
         """
-        return super(SecurityMasterDataHandler, self).get_latest_bars_values(symbol, val_type, N)
+        return super(SecurityMasterDataHandler, self).get_latest_bars_values(symbol, val_type, n)
 
     def update_bars(self, events):
         """

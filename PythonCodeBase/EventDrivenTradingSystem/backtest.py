@@ -37,7 +37,7 @@ class Backtest(object):
         portfolio - (Class) Keeps track of portfolio current and prior positions.
         strategy - (Class) Generates signals based on market data.
         """
-        #self.csv_dir = csv_dir
+        # self.csv_dir = csv_dir
         self.symbol_list = symbol_list
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
@@ -88,9 +88,9 @@ class Backtest(object):
         i = 0
         while True:
             i += 1
-            #print(i)
+            # print(i)
             # Update the market bars
-            if self.data_handler.continue_backtest == True:
+            if self.data_handler.continue_backtest:
                 self.data_handler.update_bars(self.events)
             else:
                 break
@@ -166,7 +166,7 @@ class Backtest(object):
         label = ['Portfolio Value %', 'Period Return. %', 'drawdown. %']
 
         axes = df_performance[cols].plot(subplots=True,
-            figsize=(8, 6), grid=True, style=my_styles, sharex=False)
+                                         figsize=(8, 6), grid=True, style=my_styles, sharex=False)
 
         for idx, ax in enumerate(axes):
             ax.set_ylabel(label[idx])

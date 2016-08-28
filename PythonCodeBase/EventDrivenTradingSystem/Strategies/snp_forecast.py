@@ -77,7 +77,7 @@ class SPYDailyForecastStrategy(Strategy):
             self.bar_index += 1
             if self.bar_index > 5:
                 lags = self.bars.get_latest_bars_values(
-                    self.symbol_list[0], "returns", N=3
+                    self.symbol_list[0], "returns", n=3
                 )
                 pred_series = pd.Series(
                     {
@@ -87,17 +87,17 @@ class SPYDailyForecastStrategy(Strategy):
                 )
                 pred = self.model.predict(pred_series.reshape(1, -1))
 
-                # bar_date = self.bars.get_latest_bar_datetime(sym)
+                bar_date = self.bars.get_latest_bar_datetime(sym)
 
                 if pred > 0 and not self.long_market:
                     self.long_market = True
-                    # print('LONG: {0} {1}'.format(bar_date, sym))
+                    print('LONG: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'LONG', 1.0)
                     self.events.put(signal)
 
                 if pred < 0 and self.long_market:
                     self.long_market = False
-                    # print('SHORT: {0} {1}'.format(bar_date, sym))
+                    print('SHORT: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'EXIT', 1.0)
                     self.events.put(signal)
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     start_date = data_handler.start_dt
 
     order_method = EquityWeightOrder
-    # order_method = NaiveOrder
+    order_method = NaiveOrder
 
     backtest = Backtest(
         symbol_list, initial_capital, heartbeat,

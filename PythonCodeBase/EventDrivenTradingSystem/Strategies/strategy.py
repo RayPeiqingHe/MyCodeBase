@@ -110,6 +110,8 @@ class BuyAndHoldStrategy(Strategy):
         if event.type == 'MARKET':
             symbols_to_buy = []
 
+            dt = None
+
             for s in self.symbol_list:
                 if not self.symbol_list_bought[s]:
                     self.symbol_list_bought[s] = True

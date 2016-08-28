@@ -7,6 +7,7 @@ from execution import *
 from portfolio import Portfolio
 from order import *
 
+
 class StrategiesTest(unittest.TestCase):
 
     def setUp(self):
@@ -23,13 +24,12 @@ class StrategiesTest(unittest.TestCase):
 
         self.cxcn = build_sql_conn('../config.ini')
 
-
     def test_mac_strategy(self):
-        '''
+        """
         Unit test for Moving Average Crossover Strategy
 
         :return:
-        '''
+        """
 
         from mac import MovingAverageCrossStrategy
 
@@ -44,9 +44,9 @@ class StrategiesTest(unittest.TestCase):
         order_method = EquityWeightOrder
 
         backtest = Backtest(
-        symbol_list, initial_capital, heartbeat,
-        start_date, data_handler, SimulatedExecutionHandlerWithCommision,
-        Portfolio, MovingAverageCrossStrategy, order_method
+            symbol_list, initial_capital, heartbeat,
+            start_date, data_handler, SimulatedExecutionHandlerWithCommision,
+            Portfolio, MovingAverageCrossStrategy, order_method
         )
 
         backtest.simulate_trading()

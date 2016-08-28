@@ -33,12 +33,12 @@ class PairTrades(Strategy):
         self.long_market = False
         self.short_market = False
 
-        dat = pd.DataFrame(range(10))
+        # dat = pd.DataFrame(range(10))
 
-        cov = dat.cov()
+        # cov = dat.cov()
 
     def _calculate_xy_signal(self, event):
-
+        pass
 
     def calculate_signals(self, event):
         """
@@ -48,8 +48,9 @@ class PairTrades(Strategy):
         :return:
         """
 
-        if event.type == 'MARKET' and self.bars.get_current_bar_total_number(self.y_symbol) > self.look_back \
-            and self.bars.get_current_bar_total_number(self.x_symbol) > self.look_back:
+        if event.type == 'MARKET' \
+                and self.bars.get_current_bar_total_number(self.y_symbol) > self.look_back \
+                and self.bars.get_current_bar_total_number(self.x_symbol) > self.look_back:
             y_bars = self.bars.get_latest_bars_values(
                 self.y_symbol, "adj_close", N=self.look_back)
 
@@ -68,11 +69,4 @@ class PairTrades(Strategy):
             spread = y_bars - hedge_ratio*x_bars
             zscore = (spread - np.mean(spread))/np.std(spread)
 
-
-
-
-
-
-
-
-
+            print(zscore)

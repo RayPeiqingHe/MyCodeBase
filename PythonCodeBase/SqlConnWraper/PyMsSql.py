@@ -4,8 +4,9 @@ from SqlConnWrapper import SqlConnWrapper
 import pymssql as mdb
 import pandas as pd
 
+
 class PyMsSql(SqlConnWrapper):
-    ''' class as the base Wrapper class for SQL data access
+    """ class as the base Wrapper class for SQL data access
 
     Attributes
     ==========
@@ -18,7 +19,7 @@ class PyMsSql(SqlConnWrapper):
        Execute a input sql query and return the result
     execute_query_as_df:
        Execute a input sql query and return a Pandas data frame
-    '''
+    """
 
     def __init__(self, conn_info):
         super(PyMsSql, self).__init__(conn_info)
@@ -32,7 +33,7 @@ class PyMsSql(SqlConnWrapper):
 
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, obj_type, value, traceback):
         if self.conn is not None:
             self.conn.close()
 
@@ -47,15 +48,13 @@ class PyMsSql(SqlConnWrapper):
                     data = cur.fetchall()
 
                 return data
-            except mdb.InterfaceError as e:
+            except mdb.InterfaceError:
                 fail_cnt += 1
 
                 if fail_cnt > 10:
                     return None
 
-
     def execute_query_as_df(self, query):
         df = pd.read_sql(sql=query, con=self.conn, parse_dates=True)
 
         return df
-
