@@ -79,15 +79,40 @@ class SPYDailyForecastStrategy(Strategy):
                 lags = self.bars.get_latest_bars_values(
                     self.symbol_list[0], "returns", n=3
                 )
+
+                # print(lags)
+
+                """ May be bug?
                 pred_series = pd.Series(
                     {
                         'Lag1': lags[1]*100.0,
                         'Lag2': lags[2]*100.0
                     }
                 )
-                pred = self.model.predict(pred_series.reshape(1, -1))
+                """
+
+                pred_series = pd.Series(
+                    {
+                        'Lag1': lags[2]*100.0,
+                        'Lag2': lags[1]*100.0
+                    }
+                )
 
                 bar_date = self.bars.get_latest_bar_datetime(sym)
+
+                pred = self.model.predict(pred_series.reshape(1, -1))
+
+                """
+                print(pred_series)
+
+                print("Reshape series")
+
+                print(pred_series.reshape(1, -1))
+
+                print ('Raw series date {0} pred: {1}'.format(bar_date, pred))
+
+                print("done")
+                """
 
                 if pred > 0 and not self.long_market:
                     self.long_market = True

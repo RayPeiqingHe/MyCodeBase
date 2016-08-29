@@ -21,6 +21,8 @@ def create_lagged_series(symbol, start_date, end_date, lags=5):
     """
 
     # Obtain stock information from Yahoo Finance
+    # We use start_date-datetime.timedelta(days=365) to ensure
+    # we have values for the start date when compute percentage change
     ts = web.DataReader(
         symbol, "yahoo",
         start_date-datetime.timedelta(days=365),
@@ -57,5 +59,7 @@ def create_lagged_series(symbol, start_date, end_date, lags=5):
     # Create the "Direction" column (+1 or -1) indicating an up/down day
     tsret["Direction"] = np.sign(tsret["Today"])
     tsret = tsret[tsret.index >= start_date]
+
+    # tsret.to_csv('tsret.csv')
 
     return tsret
