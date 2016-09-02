@@ -54,15 +54,20 @@ class SPYDailyForecastStrategy(Strategy):
         x = snpret[["Lag1", "Lag2"]]
         y = snpret["Direction"]
 
-        # Create training and test sets
+        # Create training and test sets, each of them is series
         start_test = self.model_start_test_date
         x_train = x[x.index < start_test]
-        # x_test = x[x.index >= start_test]
+        x_test = x[x.index >= start_test]
         y_train = y[y.index < start_test]
-        # y_test = y[y.index >= start_test]
+        y_test = y[y.index >= start_test]
 
         model = QuadraticDiscriminantAnalysis()
         model.fit(x_train, y_train)
+
+        # return nd array
+        pred_test = model.predict(x_test)
+
+        print("Error Rate is {0}".format((y_test != pred_test).sum() * 1. / len(y_test)))
 
         return model
 
@@ -116,13 +121,13 @@ class SPYDailyForecastStrategy(Strategy):
 
                 if pred > 0 and not self.long_market:
                     self.long_market = True
-                    print('LONG: {0} {1}'.format(bar_date, sym))
+                    # print('LONG: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'LONG', 1.0)
                     self.events.put(signal)
 
                 if pred < 0 and self.long_market:
                     self.long_market = False
-                    print('SHORT: {0} {1}'.format(bar_date, sym))
+                    # print('SHORT: {0} {1}'.format(bar_date, sym))
                     signal = SignalEvent(1, [sym], dt, 'EXIT', 1.0)
                     self.events.put(signal)
 
