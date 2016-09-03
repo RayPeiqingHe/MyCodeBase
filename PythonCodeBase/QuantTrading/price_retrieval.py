@@ -25,6 +25,7 @@ db_name = parser.get('log_in', 'db')
 db_user = parser.get('log_in', 'username')
 db_pass = parser.get('log_in', 'password')
 
+
 def obtain_list_of_db_tickers(sql_query):
     """
     Obtains a list of the ticker symbols in the database.
@@ -42,9 +43,9 @@ def obtain_list_of_db_tickers(sql_query):
 
 
 def get_daily_historic_data_yahoo(
-        ticker, start_date=(2000,1,1),
+        ticker, start_date=(2000, 1, 1),
         end_date=datetime.date.today().timetuple()[0:3]
-    ):
+        ):
     """
     Obtains data from Yahoo Finance returns and a list of tuples.
 
@@ -74,18 +75,19 @@ def get_daily_historic_data_yahoo(
         for y in yf_data:
             p = y.strip().split(',')
             prices.append(
-                (datetime.datetime.strptime(p[0], '%Y-%m-%d'),
-                p[1], p[2], p[3], p[4], p[5], p[6])
-            )
+                (
+                    datetime.datetime.strptime(p[0], '%Y-%m-%d'),
+                    p[1], p[2], p[3], p[4], p[5], p[6])
+                )
     except Exception as e:
         print("Could not download Yahoo data: %s" % e)
     return prices
 
 
 def get_corporate_action_from_yahoo(
-        ticker, start_date=(2000,1,1),
+        ticker, start_date=(2000, 1, 1),
         end_date=datetime.date.today().timetuple()[0:3]
-    ):
+        ):
     ticker_tup = (
         ticker, start_date[1]-1, start_date[2],
         start_date[0], end_date[1]-1, end_date[2],
@@ -105,8 +107,8 @@ def get_corporate_action_from_yahoo(
 
             corporate_actions.append(
                (p[0], datetime.datetime.strptime(p[1].strip(), '%Y%m%d'), Decimal(p[2].split(':')[0])
-               if p[0] == 'SPLIT' else Decimal(p[2]), Decimal(p[2].split(':')[1])
-               if p[0] == 'SPLIT' else 0))
+                   if p[0] == 'SPLIT' else Decimal(p[2]), Decimal(p[2].split(':')[1])
+                   if p[0] == 'SPLIT' else 0))
     except Exception as e:
         print("Could not download Yahoo data: %s" % e)
     return corporate_actions
@@ -114,7 +116,7 @@ def get_corporate_action_from_yahoo(
 
 def insert_daily_data_into_db(
         data_vendor_id, symbol_id, daily_data
-    ):
+        ):
     """
     Takes a list of tuples of daily data and adds it to the
     MySQL database. Appends the vendor ID and symbol ID to the data.
@@ -128,23 +130,18 @@ def insert_daily_data_into_db(
     # Amend the data to include the vendor ID and symbol ID
     daily_data = [
         (data_vendor_id, symbol_id, d[0], now, now,
-        d[1], d[2], d[3], d[4], d[5], d[6])
+            d[1], d[2], d[3], d[4], d[5], d[6])
         for d in daily_data
     ]
 
     # Create the insert strings
-    column_str = """data_vendor_id, symbol_id, price_date, created_date,
-                 last_updated_date, open_price, high_price, low_price,
-                 close_price, volume, adj_close_price"""
     insert_str = ("%s, " * 11)[:-2]
-    final_str = "INSERT INTO daily_price (%s) VALUES (%s)" % \
-        (column_str, insert_str)
 
     final_str = "EXEC dbo.sp_insert_daily_price %s" % insert_str
 
     con = mdb.connect(
         server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        #, login_timeout=0
+        # , login_timeout=0
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
@@ -169,7 +166,7 @@ def insert_corporate_action_data_into_db(
     # Amend the data to include the vendor ID and symbol ID
     corporate_action_data = [
         (data_vendor_id, symbol_id, d[1], now, now,
-        d[0], d[2], d[3])
+            d[0], d[2], d[3])
         for d in corporate_action_data if d[1] > last_data_date
     ]
 
@@ -186,7 +183,7 @@ def insert_corporate_action_data_into_db(
 
     con = mdb.connect(
         server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        #, login_timeout=0
+        # , login_timeout=0
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
@@ -205,7 +202,7 @@ def get_command_line_args():
 
     # Add argument for the input amount
     # The command line argument for API key
-    parser.add_argument('-t', action="store", dest="t", type=str, const=None, default= 'p',
+    parser.add_argument('-t', action="store", dest="t", type=str, const=None, default='p',
                         help="Data Type to download: p for daily prices and d for corporate actions")
 
     args = parser.parse_args()
@@ -225,11 +222,11 @@ if __name__ == "__main__":
     # data into the database
 
     if args.t == 'p':
-        sql_query = "SELECT * FROM DBO.vw_last_missing_price_date ORDER BY ticker"
+        security_query = "SELECT * FROM DBO.vw_last_missing_price_date ORDER BY ticker"
     else:
-        sql_query = "SELECT * FROM DBO.vw_last_missing_corporate_action_date ORDER BY ticker"
+        security_query = "SELECT * FROM DBO.vw_last_missing_corporate_action_date ORDER BY ticker"
 
-    tickers = obtain_list_of_db_tickers(sql_query)
+    tickers = obtain_list_of_db_tickers(security_query)
 
     lentickers = len(tickers)
     for i, t in enumerate(tickers):
@@ -243,15 +240,17 @@ if __name__ == "__main__":
         while not success:
             try:
                 if args.t == 'p':
-                    yf_data = get_daily_historic_data_yahoo(t[1],
-                           start_date = datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+                    yahoo_data = get_daily_historic_data_yahoo(
+                        t[1],
+                        start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
 
-                    insert_daily_data_into_db('1', t[0], yf_data)
+                    insert_daily_data_into_db('1', t[0], yahoo_data)
                 else:
-                    yf_data = get_corporate_action_from_yahoo(t[1],
-                           start_date = datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+                    yahoo_data = get_corporate_action_from_yahoo(
+                        t[1],
+                        start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
 
-                    insert_corporate_action_data_into_db('1', t[0], yf_data,
+                    insert_corporate_action_data_into_db('1', t[0], yahoo_data,
                                                          datetime.datetime.strptime(t[2], '%Y-%m-%d'))
 
                 success = True
@@ -259,4 +258,3 @@ if __name__ == "__main__":
                 print(e)
 
     print("Successfully added Yahoo Finance pricing data to DB.")
-

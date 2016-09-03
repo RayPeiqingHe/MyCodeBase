@@ -119,11 +119,10 @@ if __name__ == "__main__":
 
     symbols = obtain_parse_wiki_snp500(existing_tickers)
 
-    if (len(symbols) > 0):
+    if len(symbols) > 0:
         insert_snp500_symbols(symbols)
 
         print('The following new symbols are inserted')
         print('\n'.join([s[0] for s in symbols]))
 
     print("%s symbols were successfully added." % len(symbols))
-
