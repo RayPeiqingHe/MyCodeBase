@@ -13,6 +13,8 @@ shinyServer(function(input, output) {
   
   observeEvent(input$refresh, {
     v$data <- plot()
+    
+    v$data2 <- plot("^RUT", "Russell 2000")
   })
   
   output$f1 <- renderDygraph({
@@ -24,4 +26,12 @@ shinyServer(function(input, output) {
       v$data
   })
 
+  output$f2 <- renderDygraph({
+    if (is.null(v$data))
+    {
+      plot("^RUT", "Russell 2000")
+    }
+    else
+      v$data2
+  })
 })
