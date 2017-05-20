@@ -37,6 +37,28 @@ GetDataFromYahooFinance <- function(ticker="^GSPC",from=startDate)
   data
 }
 
+GetDataFromFRED <- function(ticker="SP500",from=startDate)
+{
+  data <- getSymbols(ticker,auto.assign = FALSE, src='FRED')
+  
+  data <- data[paste0(startDate, "::")]
+  
+  data <- na.omit(data[,ncol(data)])
+  
+  for (p in sma_param)
+  {
+    data <- cbind(data, SMA(data[,1],n=p))
+  }
+  
+  fieldNames <- paste0("SMA(", sma_param, ")")
+  
+  colnames(data) <- c(ticker, fieldNames)
+  
+  data <- data[sma_param[length(sma_param)]:nrow(data),]
+  
+  data
+}
+
 CheckSMA <- function(ts)
 {
   sma_250 <- ts[nrow(ts), ncol(ts)]
@@ -79,7 +101,8 @@ SendMail <- function(day, date)
 
 plot <- function(ticker="^GSPC", title = "SPX 500")
 {
-  ts <- GetDataFromYahooFinance(ticker=ticker)
+  # ts <- GetDataFromYahooFinance(ticker=ticker)
+  ts <- GetDataFromFRED(ticker)
   
   msg <- CheckSMA(ts)
   

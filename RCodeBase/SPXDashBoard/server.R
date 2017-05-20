@@ -14,13 +14,13 @@ shinyServer(function(input, output) {
   observeEvent(input$refresh, {
     v$data <- plot()
     
-    v$data2 <- plot("^RUT", "Russell 2000")
+    v$data2 <- plot("RU2000PR", "Russell 2000")
   })
   
   output$f1 <- renderDygraph({
     if (is.null(v$data))
     {
-      plot()
+      plot('SP500')
     }
     else
       v$data
@@ -29,7 +29,7 @@ shinyServer(function(input, output) {
   output$f2 <- renderDygraph({
     if (is.null(v$data))
     {
-      plot("^RUT", "Russell 2000")
+      plot("RU2000PR", "Russell 2000")
     }
     else
       v$data2
