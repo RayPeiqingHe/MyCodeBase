@@ -6,7 +6,8 @@
 from __future__ import print_function
 
 import pandas as pd
-import pymssql as mdb
+# import pymssql as mdb
+import MySQLdb as mdb
 from ConfigParser import SafeConfigParser
 
 
@@ -21,8 +22,12 @@ if __name__ == "__main__":
     db_user = parser.get('log_in', 'username')
     db_pass = parser.get('log_in', 'password')
 
+    # con = mdb.connect(
+    #     server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+    # )
+
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Select all of the historic Google adjusted close data

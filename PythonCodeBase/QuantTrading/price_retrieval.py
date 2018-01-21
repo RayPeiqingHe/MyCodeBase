@@ -8,7 +8,7 @@ from __future__ import print_function
 import datetime
 import warnings
 
-import pymssql as mdb
+import MySQLdb as mdb
 import requests
 from ConfigParser import SafeConfigParser
 from decimal import Decimal
@@ -31,7 +31,7 @@ def obtain_list_of_db_tickers(sql_query):
     Obtains a list of the ticker symbols in the database.
     """
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     with con:
@@ -140,8 +140,7 @@ def insert_daily_data_into_db(
     final_str = "EXEC dbo.sp_insert_daily_price %s" % insert_str
 
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        # , login_timeout=0
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
@@ -182,8 +181,7 @@ def insert_corporate_action_data_into_db(
         (column_str, insert_str)
 
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        # , login_timeout=0
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
