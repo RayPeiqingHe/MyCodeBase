@@ -14,6 +14,7 @@ from ConfigParser import SafeConfigParser
 from decimal import Decimal
 from sqlalchemy import create_engine
 import pandas as pd
+from pandas_datareader._utils import RemoteDataError
 
 
 # Obtain a database connection to the MySQL instance
@@ -57,7 +58,7 @@ def get_daily_historic_data_pandas(
     column_map = {
         'Date': 'price_date',
         'Open': 'open_price',
-        'High': 'close_price',
+        'High': 'high_price',
         'Low': 'low_price',
         'Close': 'close_price',
         'Adj Close': 'adj_close_price',
@@ -271,7 +272,7 @@ if __name__ == "__main__":
     # data into the database
 
     if args.t == 'p':
-        security_query = "SELECT * FROM vw_last_missing_price_date ORDER BY ticker"
+        security_query = "SELECT * FROM vw_last_missing_price_date WHERE last_price_date = '2000-01-01' ORDER BY ticker"
     else:
         security_query = "SELECT * FROM vw_last_missing_corporate_action_date ORDER BY ticker"
 
@@ -284,31 +285,27 @@ if __name__ == "__main__":
             (t[1], i+1, lentickers, t[2][:10])
         )
 
-        success = False
+        try:
+            if args.t == 'p':
 
-        while not success:
-            try:
-                if args.t == 'p':
+                s_date = datetime.datetime.strptime(t[2][:10], '%Y-%m-%d')
 
-                    s_date = datetime.datetime.strptime(t[2][:10], '%Y-%m-%d')
+                e_date = datetime.date.today()
 
-                    e_date = datetime.date.today()
-
-                    df_res = get_daily_historic_data_pandas(t[1],
+                df_res = get_daily_historic_data_pandas(t[1],
                                                             s_date, e_date, 'yahoo')
 
-                    if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
+                if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
                         insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
-                else:
-                    yahoo_data = get_corporate_action_from_yahoo(
-                        t[1],
-                        start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+            else:
+                yahoo_data = get_corporate_action_from_yahoo(
+                    t[1],
+                    start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
 
-                    insert_corporate_action_data_into_db('1', t[0], yahoo_data,
-                                                         datetime.datetime.strptime(t[2], '%Y-%m-%d'))
+                insert_corporate_action_data_into_db('1', t[0], yahoo_data,
+                                                        datetime.datetime.strptime(t[2], '%Y-%m-%d'))
 
-                success = True
-            except mdb.InterfaceError as e:
-                print(e)
+        except RemoteDataError as e:
+            print(e)
 
     print("Successfully added Yahoo Finance pricing data to DB.")
