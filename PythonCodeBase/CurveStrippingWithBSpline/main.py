@@ -5,6 +5,7 @@ import numpy as np
 from BsplineBasis import BsplineBasis
 from MarketObject import IrSwap, BasisSwap, BaseCurve
 from Bspline import Bspline
+import matplotlib.pyplot as plt
 
 
 # Libor rate
@@ -131,6 +132,8 @@ if __name__ == '__main__':
 
     ctl_pts0 = np.repeat(0.01, 2 * len(tvec))
 
+    get_data()
+
     res = sco.minimize(objective_function, ctl_pts0, method='BFGS', tol=1e-8, options={'disp': True})
 
     libor_ctl_pts = res['x'][:int(len(res['x']) / 2)]
@@ -148,3 +151,5 @@ if __name__ == '__main__':
     libor_curve.plot()
 
     ois_curve.plot()
+
+    plt.show()

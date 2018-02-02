@@ -1,5 +1,5 @@
 from __future__ import division, print_function, absolute_import
-import Memoize
+from Memoize import Memoize
 import numpy as np
 
 
