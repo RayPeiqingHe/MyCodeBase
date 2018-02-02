@@ -165,6 +165,11 @@ def insert_daily_data_into_db_from_df(
 
         df_prices.drop(['symbol_id'], axis=1)
 
+        # update_ticker_datetime_sql = \
+        #    "UPDATE symbol SET last_price_updated_date = '{0}' WHERE ticker = '{1}'"
+
+        # engine.execute(update_ticker_datetime_sql.format(
+        #     datetime.strftime('%Y-%m-%d %H:%M:%S'), ticker))
 
 def insert_daily_data_into_db(
         data_vendor_id, symbol_id, daily_data
@@ -272,7 +277,7 @@ if __name__ == "__main__":
     # data into the database
 
     if args.t == 'p':
-        security_query = "SELECT * FROM vw_last_missing_price_date WHERE last_price_date = '2000-01-01' ORDER BY ticker"
+        security_query = "SELECT * FROM vw_last_missing_price_date ORDER BY ticker"
     else:
         security_query = "SELECT * FROM vw_last_missing_corporate_action_date ORDER BY ticker"
 
@@ -297,6 +302,7 @@ if __name__ == "__main__":
 
                 if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
                         insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
+
             else:
                 yahoo_data = get_corporate_action_from_yahoo(
                     t[1],
