@@ -101,6 +101,8 @@ SendMail <- function(day, date)
 
 plot <- function(ticker="^GSPC", title = "SPX 500")
 {
+  ticker <- "SP500"
+  
   # ts <- GetDataFromYahooFinance(ticker=ticker)
   ts <- GetDataFromFRED(ticker)
   
