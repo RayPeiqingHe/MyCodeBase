@@ -82,9 +82,11 @@ GetSummeyStatistics <- function()
   
   # monthlyRet <- apply.monthly(briIndexRet, mean)
   
-  avgDownMonth <- 0
+  monthlyRet <- do.call(cbind, lapply(briIndex, monthlyReturn))
+  
+  avgDownMonth <- mean(monthlyRet[monthlyRet < 0])
     
-  avgUpMonth <- 0
+  avgUpMonth <- mean(monthlyRet[monthlyRet > 0])
   
   pertNeg <- nrow(briIndexRet[briIndexRet < 0]) / nrow(briIndexRet)
   
@@ -289,12 +291,18 @@ GetCaptureStatistics <- function()
               , data = annualizedRet)
   
   perc <- c(customPercent(model$coefficients[1]), 
-            customPercent(model$coefficients[2]), 
-            customPercent(cor(annualizedRet[, 1], annualizedRet[, 2])) , 
+            round(model$coefficients[2], 2), 
+            round(cor(annualizedRet[, 1], annualizedRet[, 2]), 2) , 
             customPercent(summary(model)$adj.r.squared),
-            upDown[1], upDown[2], upDown[1] - upDown[2],
-            upDown[3], upDown[4], upDown[3] - upDown[4],
-            upDown[5], upDown[6], (upDown[5] + upDown[6]) / 2)
+            customPercent(upDown[1]), 
+            customPercent(upDown[2]), 
+            customPercent(upDown[1] - upDown[2]),
+            customPercent(upDown[3]), 
+            customPercent(upDown[4]), 
+            customPercent(upDown[3] - upDown[4]),
+            customPercent(upDown[5]), 
+            customPercent(upDown[6]), 
+            customPercent((upDown[5] + upDown[6]) / 2))
   
   dat <- data.frame(Statistics = col
                     ,Result = perc)

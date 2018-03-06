@@ -77,8 +77,7 @@ shinyServer(function(input, output) {
                   rownames = FALSE,  
                   options=list(
                   paging = FALSE,
-                  searching = FALSE, info=FALSE)) %>%
-                  formatPercentage(1:13, digits = 2)
+                  searching = FALSE, info=FALSE)) #%>% formatPercentage(1:13, digits = 2)
     }
   )
   
