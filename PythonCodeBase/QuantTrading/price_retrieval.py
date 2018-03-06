@@ -8,10 +8,13 @@ from __future__ import print_function
 import datetime
 import warnings
 
-import pymssql as mdb
+import MySQLdb as mdb
 import requests
 from ConfigParser import SafeConfigParser
 from decimal import Decimal
+from sqlalchemy import create_engine
+import pandas as pd
+from pandas_datareader._utils import RemoteDataError
 
 
 # Obtain a database connection to the MySQL instance
@@ -31,7 +34,7 @@ def obtain_list_of_db_tickers(sql_query):
     Obtains a list of the ticker symbols in the database.
     """
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     with con:
@@ -40,6 +43,31 @@ def obtain_list_of_db_tickers(sql_query):
             data = cur.fetchall()
 
     return [(d[0], d[1], d[2]) for d in data]
+
+
+def get_daily_historic_data_pandas(
+        ticker, start_date=(2000, 1, 1),
+        end_date=datetime.date.today(),
+        source='yahoo'):
+    import pandas_datareader.data as web
+
+    res = web.DataReader(ticker, source, start_date, end_date)
+
+    res.reset_index(inplace=True)
+
+    column_map = {
+        'Date': 'price_date',
+        'Open': 'open_price',
+        'High': 'high_price',
+        'Low': 'low_price',
+        'Close': 'close_price',
+        'Adj Close': 'adj_close_price',
+        'Volume': 'volume'
+        }
+
+    res.rename(index=str, columns=column_map, inplace=True)
+
+    return res
 
 
 def get_daily_historic_data_yahoo(
@@ -79,8 +107,8 @@ def get_daily_historic_data_yahoo(
                     datetime.datetime.strptime(p[0], '%Y-%m-%d'),
                     p[1], p[2], p[3], p[4], p[5], p[6])
                 )
-    except Exception as e:
-        print("Could not download Yahoo data: %s" % e)
+    except Exception as ex:
+        print("Could not download Yahoo data: %s" % ex)
     return prices
 
 
@@ -109,10 +137,39 @@ def get_corporate_action_from_yahoo(
                (p[0], datetime.datetime.strptime(p[1].strip(), '%Y%m%d'), Decimal(p[2].split(':')[0])
                    if p[0] == 'SPLIT' else Decimal(p[2]), Decimal(p[2].split(':')[1])
                    if p[0] == 'SPLIT' else 0))
-    except Exception as e:
-        print("Could not download Yahoo data: %s" % e)
+    except Exception as ex:
+        print("Could not download Yahoo data: %s" % ex)
     return corporate_actions
 
+
+def insert_daily_data_into_db_from_df(
+        df_prices,
+        ticker,
+        table_name='daily_price',
+        data_vendor_id=1,
+        symbol_id=None):
+    conn_str = 'mysql://{0}:{1}@{2}/{3}'.format(db_user, db_pass, db_host, db_name)
+
+    engine = create_engine(conn_str)
+
+    query = "SELECT id FROM symbol WHERE ticker = '{0}'".format(ticker)
+
+    with engine.connect() as conn, conn.begin():
+        if symbol_id is None:
+            symbol_id = pd.read_sql_query(query, engine).iloc[0]['id']
+
+        df_prices['symbol_id'] = symbol_id
+        df_prices['data_vendor_id'] = data_vendor_id
+
+        df_prices.to_sql(table_name, conn, if_exists='append', index=False)
+
+        df_prices.drop(['symbol_id'], axis=1)
+
+        # update_ticker_datetime_sql = \
+        #    "UPDATE symbol SET last_price_updated_date = '{0}' WHERE ticker = '{1}'"
+
+        # engine.execute(update_ticker_datetime_sql.format(
+        #     datetime.strftime('%Y-%m-%d %H:%M:%S'), ticker))
 
 def insert_daily_data_into_db(
         data_vendor_id, symbol_id, daily_data
@@ -140,8 +197,7 @@ def insert_daily_data_into_db(
     final_str = "EXEC dbo.sp_insert_daily_price %s" % insert_str
 
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        # , login_timeout=0
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
@@ -152,7 +208,7 @@ def insert_daily_data_into_db(
 
 def insert_corporate_action_data_into_db(
         data_vendor_id, symbol_id, corporate_action_data, last_data_date
-    ):
+        ):
     """
     Takes a list of tuples of daily data and adds it to the
     MySQL database. Appends the vendor ID and symbol ID to the data.
@@ -182,8 +238,7 @@ def insert_corporate_action_data_into_db(
         (column_str, insert_str)
 
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
-        # , login_timeout=0
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Using the MySQL connection, carry out an INSERT INTO for every symbol
@@ -205,10 +260,10 @@ def get_command_line_args():
     parser.add_argument('-t', action="store", dest="t", type=str, const=None, default='p',
                         help="Data Type to download: p for daily prices and d for corporate actions")
 
-    args = parser.parse_args()
+    cmd_args = parser.parse_args()
 
     # Return all command line arguments
-    return args
+    return cmd_args
 
 
 if __name__ == "__main__":
@@ -222,39 +277,41 @@ if __name__ == "__main__":
     # data into the database
 
     if args.t == 'p':
-        security_query = "SELECT * FROM DBO.vw_last_missing_price_date ORDER BY ticker"
+        security_query = "SELECT * FROM vw_last_missing_price_date ORDER BY ticker"
     else:
-        security_query = "SELECT * FROM DBO.vw_last_missing_corporate_action_date ORDER BY ticker"
+        security_query = "SELECT * FROM vw_last_missing_corporate_action_date ORDER BY ticker"
 
     tickers = obtain_list_of_db_tickers(security_query)
 
     lentickers = len(tickers)
     for i, t in enumerate(tickers):
         print(
-            "Adding data for %s: %s out of %s" %
-            (t[1], i+1, lentickers)
+            "Adding data for %s: %s out of %s %s" %
+            (t[1], i+1, lentickers, t[2][:10])
         )
 
-        success = False
+        try:
+            if args.t == 'p':
 
-        while not success:
-            try:
-                if args.t == 'p':
-                    yahoo_data = get_daily_historic_data_yahoo(
-                        t[1],
-                        start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+                s_date = datetime.datetime.strptime(t[2][:10], '%Y-%m-%d')
 
-                    insert_daily_data_into_db('1', t[0], yahoo_data)
-                else:
-                    yahoo_data = get_corporate_action_from_yahoo(
-                        t[1],
-                        start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+                e_date = datetime.date.today()
 
-                    insert_corporate_action_data_into_db('1', t[0], yahoo_data,
-                                                         datetime.datetime.strptime(t[2], '%Y-%m-%d'))
+                df_res = get_daily_historic_data_pandas(t[1],
+                                                            s_date, e_date, 'yahoo')
 
-                success = True
-            except mdb.InterfaceError as e:
-                print(e)
+                if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
+                        insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
+
+            else:
+                yahoo_data = get_corporate_action_from_yahoo(
+                    t[1],
+                    start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+
+                insert_corporate_action_data_into_db('1', t[0], yahoo_data,
+                                                        datetime.datetime.strptime(t[2], '%Y-%m-%d'))
+
+        except RemoteDataError as e:
+            print(e)
 
     print("Successfully added Yahoo Finance pricing data to DB.")

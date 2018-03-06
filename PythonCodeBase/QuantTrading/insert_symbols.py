@@ -8,7 +8,7 @@ from __future__ import print_function
 import datetime
 
 import bs4
-import pymssql as mdb
+import MySQLdb as mdb
 import requests
 from ConfigParser import SafeConfigParser
 
@@ -76,7 +76,7 @@ def get_existing_symbols_from_db():
     :return:
     """
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     sql_query = "select ticker from symbol"
@@ -95,7 +95,7 @@ def insert_snp500_symbols(symbols):
     """
 
     con = mdb.connect(
-        server=db_host, user=db_user, password=db_pass, database=db_name, autocommit=True
+        host=db_host, user=db_user, password=db_pass, db=db_name
     )
 
     # Create the insert strings
