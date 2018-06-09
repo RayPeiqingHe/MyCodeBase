@@ -70,10 +70,32 @@ def get_daily_historic_data_pandas(
     return res
 
 
+def get_historic_corporate_action_pandas(
+        ticker, start_date=(2000, 1, 1),
+        end_date=datetime.date.today(),
+        source='yahoo-dividends'):
+    import pandas_datareader.data as web
+
+    df_hist_actions = web.DataReader(ticker, source, start_date, end_date)
+
+    df_hist_actions.reset_index(inplace=True)
+
+    column_map = {
+        'Date': 'corporate_action_date',
+        'action': 'corporate_action_type',
+        'value': 'ex_amount'
+        }
+
+    df_hist_actions.rename(index=str, columns=column_map, inplace=True)
+
+    df_hist_actions.sort_values(by=['corporate_action_date'], inplace=True)
+
+    return df_hist_actions
+
+
 def get_daily_historic_data_yahoo(
         ticker, start_date=(2000, 1, 1),
-        end_date=datetime.date.today().timetuple()[0:3]
-        ):
+        end_date=datetime.date.today().timetuple()[0:3]):
     """
     Obtains data from Yahoo Finance returns and a list of tuples.
 
@@ -292,26 +314,28 @@ if __name__ == "__main__":
               (t[1], i+1, len_tickers, t[2][:10]))
 
         try:
+            s_date = datetime.datetime.strptime(t[2][:10], '%Y-%m-%d')
+
+            e_date = datetime.date.today()
+
             if args.t == 'p':
-
-                s_date = datetime.datetime.strptime(t[2][:10], '%Y-%m-%d')
-
-                e_date = datetime.date.today()
 
                 df_res = get_daily_historic_data_pandas(t[1], s_date, e_date, 'yahoo')
 
                 if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
                         insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
 
-            else:
-                yahoo_data = get_corporate_action_from_yahoo(
-                    t[1],
-                    start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
+            elif args.t == 'd':
+                df_res = get_historic_corporate_action_pandas(t[1], s_date, e_date, source='yahoo-actions')
 
-                insert_corporate_action_data_into_db('1', t[0], yahoo_data,
-                                                     datetime.datetime.strptime(t[2], '%Y-%m-%d'))
+                last_corp_action_date = datetime.datetime.strptime(
+                    str(df_res.iloc[-1]['corporate_action_date']), '%Y-%m-%d 00:00:00')
 
-        except RemoteDataError as e:
+                if len(df_res.index) > 0 and last_corp_action_date > s_date:
+                    insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0], table_name='corporate_action')
+
+        except (RemoteDataError, ValueError, ZeroDivisionError) as e:
+            # check ACN for ZeroDivisionError
             print(e)
 
     print("Successfully added Yahoo Finance pricing data to DB.")
