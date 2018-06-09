@@ -171,9 +171,8 @@ def insert_daily_data_into_db_from_df(
         # engine.execute(update_ticker_datetime_sql.format(
         #     datetime.strftime('%Y-%m-%d %H:%M:%S'), ticker))
 
-def insert_daily_data_into_db(
-        data_vendor_id, symbol_id, daily_data
-        ):
+
+def insert_daily_data_into_db(data_vendor_id, symbol_id, daily_data):
     """
     Takes a list of tuples of daily data and adds it to the
     MySQL database. Appends the vendor ID and symbol ID to the data.
@@ -253,14 +252,17 @@ def get_command_line_args():
     import argparse
 
     # Parse the command line argument
-    parser = argparse.ArgumentParser(description='Yahoo Data downloader')
+    arg_parser = argparse.ArgumentParser(description='Yahoo Data downloader')
 
     # Add argument for the input amount
     # The command line argument for API key
-    parser.add_argument('-t', action="store", dest="t", type=str, const=None, default='p',
-                        help="Data Type to download: p for daily prices and d for corporate actions")
+    arg_parser.add_argument('-t', action="store", dest="t", type=str, const=None, default='p',
+                            help="Data Type to download: p for daily prices and d for corporate actions")
 
-    cmd_args = parser.parse_args()
+    arg_parser.add_argument('-s', action="store", dest="s", type=str, const=None, default='',
+                            help="Ticker symbol to start download prices")
+
+    cmd_args = arg_parser.parse_args()
 
     # Return all command line arguments
     return cmd_args
@@ -283,12 +285,11 @@ if __name__ == "__main__":
 
     tickers = obtain_list_of_db_tickers(security_query)
 
-    lentickers = len(tickers)
+    len_tickers = len(tickers)
     for i, t in enumerate(tickers):
-        print(
-            "Adding data for %s: %s out of %s %s" %
-            (t[1], i+1, lentickers, t[2][:10])
-        )
+
+        print("Adding data for %s: %s out of %s %s" %
+              (t[1], i+1, len_tickers, t[2][:10]))
 
         try:
             if args.t == 'p':
@@ -297,8 +298,7 @@ if __name__ == "__main__":
 
                 e_date = datetime.date.today()
 
-                df_res = get_daily_historic_data_pandas(t[1],
-                                                            s_date, e_date, 'yahoo')
+                df_res = get_daily_historic_data_pandas(t[1], s_date, e_date, 'yahoo')
 
                 if len(df_res.index) > 0 and df_res.iloc[-1]['price_date'] > s_date:
                         insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
@@ -309,7 +309,7 @@ if __name__ == "__main__":
                     start_date=datetime.datetime.strptime(t[2], '%Y-%m-%d').timetuple()[0:3])
 
                 insert_corporate_action_data_into_db('1', t[0], yahoo_data,
-                                                        datetime.datetime.strptime(t[2], '%Y-%m-%d'))
+                                                     datetime.datetime.strptime(t[2], '%Y-%m-%d'))
 
         except RemoteDataError as e:
             print(e)
