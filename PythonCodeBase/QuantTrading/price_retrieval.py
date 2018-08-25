@@ -20,6 +20,7 @@ from pandas_datareader._utils import RemoteDataError
 # Obtain a database connection to the MySQL instance
 # Connect to the MySQL instance
 parser = SafeConfigParser()
+
 parser.read('config.ini')
 
 # Connect to the MySQL instance
@@ -66,6 +67,8 @@ def get_daily_historic_data_pandas(
         }
 
     res.rename(index=str, columns=column_map, inplace=True)
+
+    res.drop_duplicates(subset=['price_date'], inplace=True)
 
     return res
 
