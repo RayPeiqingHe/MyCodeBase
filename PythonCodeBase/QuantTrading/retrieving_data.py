@@ -6,14 +6,13 @@
 from __future__ import print_function
 
 import pandas as pd
-# import pymssql as mdb
 import MySQLdb as mdb
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 
 
 if __name__ == "__main__":
 
-    parser = SafeConfigParser()
+    parser = ConfigParser()
     parser.read('config.ini')
 
     # Connect to the MySQL instance

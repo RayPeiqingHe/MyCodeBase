@@ -3,31 +3,29 @@
 
 # price_retrieval.py
 
-from __future__ import print_function
-
 import datetime
 import warnings
 
 import MySQLdb as mdb
 import requests
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 from decimal import Decimal
 from sqlalchemy import create_engine
 import pandas as pd
-from pandas_datareader._utils import RemoteDataError
+import yfinance as yf
 
 
 # Obtain a database connection to the MySQL instance
 # Connect to the MySQL instance
-parser = SafeConfigParser()
+parser = ConfigParser()
 
-parser.read('config.ini')
+parser.read('db.ini')
 
 # Connect to the MySQL instance
-db_host = parser.get('log_in', 'host')
-db_name = parser.get('log_in', 'db')
-db_user = parser.get('log_in', 'username')
-db_pass = parser.get('log_in', 'password')
+db_host = parser.get('mysql', 'host')
+db_name = parser.get('mysql', 'db')
+db_user = parser.get('mysql', 'username')
+db_pass = parser.get('mysql', 'password')
 
 
 def obtain_list_of_db_tickers(sql_query):
@@ -50,9 +48,10 @@ def get_daily_historic_data_pandas(
         ticker, start_date=(2000, 1, 1),
         end_date=datetime.date.today(),
         source='yahoo'):
-    import pandas_datareader.data as web
 
-    res = web.DataReader(ticker, source, start_date, end_date)
+    ticker_data = yf.Ticker(ticker)
+
+    res = ticker_data.history(period='1d', start=start_date, end=end_date, auto_adjust=False)
 
     res.reset_index(inplace=True)
 
@@ -63,7 +62,9 @@ def get_daily_historic_data_pandas(
         'Low': 'low_price',
         'Close': 'close_price',
         'Adj Close': 'adj_close_price',
-        'Volume': 'volume'
+        'Volume': 'volume',
+        'Dividends': 'dividends',
+        'Stock Splits': 'stock_splits'
         }
 
     res.rename(index=str, columns=column_map, inplace=True)
@@ -71,29 +72,6 @@ def get_daily_historic_data_pandas(
     res.drop_duplicates(subset=['price_date'], inplace=True)
 
     return res
-
-
-def get_historic_corporate_action_pandas(
-        ticker, start_date=(2000, 1, 1),
-        end_date=datetime.date.today(),
-        source='yahoo-dividends'):
-    import pandas_datareader.data as web
-
-    df_hist_actions = web.DataReader(ticker, source, start_date, end_date)
-
-    df_hist_actions.reset_index(inplace=True)
-
-    column_map = {
-        'Date': 'corporate_action_date',
-        'action': 'corporate_action_type',
-        'value': 'ex_amount'
-        }
-
-    df_hist_actions.rename(index=str, columns=column_map, inplace=True)
-
-    df_hist_actions.sort_values(by=['corporate_action_date'], inplace=True)
-
-    return df_hist_actions
 
 
 def get_daily_historic_data_yahoo(
@@ -329,7 +307,7 @@ if __name__ == "__main__":
                         insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0])
 
             elif args.t == 'd':
-                df_res = get_historic_corporate_action_pandas(t[1], s_date, e_date, source='yahoo-actions')
+                df_res = get_corporate_action_from_yahoo(t[1], s_date, e_date, source='yahoo-actions')
 
                 last_corp_action_date = datetime.datetime.strptime(
                     str(df_res.iloc[-1]['corporate_action_date']), '%Y-%m-%d 00:00:00')
@@ -337,7 +315,7 @@ if __name__ == "__main__":
                 if len(df_res.index) > 0 and last_corp_action_date > s_date:
                     insert_daily_data_into_db_from_df(df_res, t[1], symbol_id=t[0], table_name='corporate_action')
 
-        except (RemoteDataError, ValueError, ZeroDivisionError) as e:
+        except (ValueError, ZeroDivisionError) as e:
             # check ACN for ZeroDivisionError
             print(e)
 

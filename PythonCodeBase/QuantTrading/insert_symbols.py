@@ -10,19 +10,19 @@ import datetime
 import bs4
 import MySQLdb as mdb
 import requests
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 
 
 # Connect to the MySQL instance
 
-parser = SafeConfigParser()
-parser.read('config.ini')
+parser = ConfigParser()
+parser.read('db.ini')
 
 # Connect to the MySQL instance
-db_host = parser.get('log_in', 'host')
-db_name = parser.get('log_in', 'db')
-db_user = parser.get('log_in', 'username')
-db_pass = parser.get('log_in', 'password')
+db_host = parser.get('mysql', 'host')
+db_name = parser.get('mysql', 'db')
+db_user = parser.get('mysql', 'username')
+db_pass = parser.get('mysql', 'password')
 
 
 def obtain_parse_wiki_snp500(existing_tickers):
@@ -59,6 +59,7 @@ def obtain_parse_wiki_snp500(existing_tickers):
 
         symbols.append(
             (
+                '1',
                 tds[0].select('a')[0].text,  # Ticker
                 'stock',
                 tds[1].select('a')[0].text,  # Name
@@ -67,6 +68,34 @@ def obtain_parse_wiki_snp500(existing_tickers):
             )
         )
     return symbols
+
+
+def obtain_parse_nasdaq100(existing_tickers):
+    from pytickersymbols import PyTickerSymbols
+
+    stock_data = PyTickerSymbols()
+
+    nasdaq100_stocks = stock_data.get_stocks_by_index('NASDAQ 100')
+
+    nasdaq_symbols = []
+    for symbol in nasdaq100_stocks:
+        ticker = symbol['symbol']
+
+        if ticker not in existing_tickers:
+            nasdaq_symbols.append(
+                (
+                    '2',
+                    ticker,  # Ticker
+                    'stock',
+                    symbol['name'],  # Name
+                    symbol['industries'][0],  # Sector
+                    'USD',
+                    datetime.datetime.utcnow(),
+                    datetime.datetime.utcnow()
+                )
+            )
+
+    return nasdaq_symbols
 
 
 def get_existing_symbols_from_db():
@@ -99,10 +128,10 @@ def insert_snp500_symbols(symbols):
     )
 
     # Create the insert strings
-    column_str = """ticker, instrument, name, sector,
+    column_str = """exchange_id, ticker, instrument, name, sector,
                  currency, created_date, last_updated_date
                  """
-    insert_str = ("%s, " * 7)[:-2]
+    insert_str = ("%s, " * 8)[:-2]
     final_str = "INSERT INTO symbol (%s) VALUES (%s)" % \
         (column_str, insert_str)
 
@@ -123,6 +152,16 @@ if __name__ == "__main__":
         insert_snp500_symbols(symbols)
 
         print('The following new symbols are inserted')
-        print('\n'.join([s[0] for s in symbols]))
+        print('\n'.join([s[1] for s in symbols]))
+
+    existing_tickers = existing_tickers | set(symbols)
+
+    symbols = obtain_parse_nasdaq100(existing_tickers)
+
+    if len(symbols) > 0:
+        insert_snp500_symbols(symbols)
+
+        print('The following new symbols are inserted')
+        print('\n'.join([s[1] for s in symbols]))
 
     print("%s symbols were successfully added." % len(symbols))
