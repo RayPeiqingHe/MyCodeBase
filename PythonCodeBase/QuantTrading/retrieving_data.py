@@ -3,8 +3,6 @@
 
 # retrieving_data.py
 
-from __future__ import print_function
-
 import pandas as pd
 import MySQLdb as mdb
 from configparser import ConfigParser

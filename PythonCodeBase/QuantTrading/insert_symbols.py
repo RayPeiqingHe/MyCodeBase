@@ -3,14 +3,14 @@
 
 # insert_symbols.py
 
-from __future__ import print_function
-
 import datetime
 
 import bs4
 import MySQLdb as mdb
 import requests
 from configparser import ConfigParser
+import pandas as pd
+import numpy as np
 
 
 # Connect to the MySQL instance
@@ -142,6 +142,32 @@ def insert_snp500_symbols(symbols):
         cur.executemany(final_str, symbols)
 
 
+def getNasdaqTickersFromCsv(existing_nasdaq_tickers, csv_file='companylist.csv'):
+    df_tickers = pd.read_csv(csv_file)
+
+    df_tickers.replace(np.nan, '', inplace=True, regex=True)
+
+    nasdaq_symbols = []
+    for index, symbol in df_tickers.iterrows():
+        ticker = symbol['Symbol']
+
+        if ticker not in existing_nasdaq_tickers:
+            nasdaq_symbols.append(
+                (
+                    '3',
+                    ticker,  # Ticker
+                    'stock',
+                    symbol['Name'],  # Name
+                    symbol['industry'],  # Sector
+                    'USD',
+                    datetime.datetime.utcnow(),
+                    datetime.datetime.utcnow()
+                )
+            )
+
+    return nasdaq_symbols
+
+
 if __name__ == "__main__":
 
     existing_tickers = get_existing_symbols_from_db()
@@ -157,6 +183,10 @@ if __name__ == "__main__":
     existing_tickers = existing_tickers | set(symbols)
 
     symbols = obtain_parse_nasdaq100(existing_tickers)
+
+    existing_tickers = existing_tickers | set(symbols)
+
+    symbols = getNasdaqTickersFromCsv(existing_tickers)
 
     if len(symbols) > 0:
         insert_snp500_symbols(symbols)
